@@ -1,4 +1,4 @@
-# Mosswall
+# Sentinel Trace
 
 Mosswall is a dual-speed AI safety system providing sub-15ms inline prompt injection & jailbreak defense alongside continuous background hallucination and groundedness evaluation, powered by Moss.
 
