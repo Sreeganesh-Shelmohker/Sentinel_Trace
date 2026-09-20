@@ -3,7 +3,7 @@
 import { useCallback, useEffect, useMemo, useState } from 'react'
 import type { CSSProperties, ReactNode } from 'react'
 import { AnimatePresence, motion, useMotionValue, useSpring } from 'motion/react'
-import { Activity, AlertTriangle, ArrowRight, Ban, Check, ChevronDown, Clock3, Database, GitBranch, Layers3, Menu, Moon, Play, Radio, RefreshCw, ShieldCheck, Sparkles, Sun, Terminal, Zap } from 'lucide-react'
+import { Activity, AlertTriangle, ArrowRight, Ban, Check, ChevronDown, Clock3, Database, GitBranch, Layers3, Menu, Play, Radio, RefreshCw, ShieldCheck, Sparkles, Terminal, Zap } from 'lucide-react'
 
 type GuardrailResult = { blocked: boolean; category?: string; similarity?: number; latency_ms?: number }
 type EvalResult = { grounded: boolean; score?: number; latency_ms?: number }
@@ -59,7 +59,6 @@ export default function MosswallDashboard() {
   const [apiError, setApiError] = useState(false)
   const [policies, setPolicies] = useState<PoliciesResponse | null>(null)
   const [activeTab, setActiveTab] = useState('Home')
-  const [isLight, setIsLight] = useState(false)
   const tabs = ['Home', 'Guardrail Check', 'Context Evaluation', 'History', 'Live Dashboard', 'Policies']
 
   const callGuardrail = useCallback(async (value: string, key: string, custom = false) => {
@@ -83,11 +82,10 @@ export default function MosswallDashboard() {
 
   const statItems = useMemo(() => [['Total checks', stats.total.toLocaleString(), 'since 09:00'], ['Block rate', `${stats.blockRate}%`, '−2.1% vs yesterday'], ['Avg guardrail', `${stats.guard}ms`, 'p95 · 18ms'], ['Avg evaluation', `${(stats.eval / 1000).toFixed(1)}s`, 'background'], ['Groundedness', `${stats.grounded}%`, 'last 24 hours']], [stats])
 
-  return <main className={`min-h-screen bg-[var(--st-bg)] text-[var(--st-text)] selection:bg-[var(--st-primary)]/30 ${isLight ? 'light' : ''}`}>
-    <button type="button" onClick={() => setIsLight((value) => !value)} className="fixed right-5 top-5 z-30 flex size-9 items-center justify-center rounded-full border border-[var(--st-border)] bg-[var(--st-surface)] text-[var(--st-muted)] shadow-lg transition hover:border-[var(--st-primary)] hover:text-[var(--st-primary)]" aria-label={isLight ? 'Switch to dark mode' : 'Switch to light mode'}>{isLight ? <Moon size={14} /> : <Sun size={14} />}</button>
+  return <main className="light min-h-screen bg-[var(--st-bg)] text-[var(--st-text)] selection:bg-[var(--st-primary)]/30">
     <aside className="fixed inset-y-0 left-0 z-20 hidden w-64 border-r border-[var(--st-border)] bg-[var(--st-surface)] p-4 lg:block">
       <div className="mb-8 flex items-center gap-3 px-2"><div className="h-9 w-9 overflow-hidden rounded-full border border-[var(--st-primary)]/60 bg-[var(--st-bg)] p-1"><img src="https://hebbkx1anhila5yf.public.blob.vercel-storage.com/Sentinel%20Trace-0HvhwKqlgsZ4gqOF2pDOuqO6CTR7ea.png" alt="Sentinel Trace logo" className="h-full w-full rounded-full object-cover" /></div><span className="font-semibold tracking-tight">Sentinel Trace</span></div>
-      <nav aria-label="Dashboard sections" className="space-y-1">{tabs.map((tab) => <button key={tab} onClick={() => setActiveTab(tab)} className={`relative flex w-full items-center gap-3 rounded-md px-3 py-2.5 text-left text-xs transition-all ${activeTab === tab ? 'bg-[var(--st-elevated)] text-[var(--st-text)] shadow-[0_0_18px_var(--st-glow)]' : 'text-[var(--st-muted)] hover:bg-[var(--st-elevated)] hover:text-[var(--st-text)] hover:shadow-[0_0_14px_var(--st-glow)]'}`}><span className={`h-1.5 w-1.5 rounded-full ${activeTab === tab ? 'bg-[var(--st-primary)]' : 'bg-[var(--st-border)]'}`} />{tab}{activeTab === tab && <motion.span layoutId="tab-indicator" className="absolute right-2 h-4 w-0.5 rounded-full bg-[var(--st-primary)]" transition={{ type: 'spring', stiffness: 400, damping: 30 }} />}</button>)}</nav>
+      <nav aria-label="Dashboard sections" className="space-y-1">{tabs.map((tab) => <button key={tab} onClick={() => setActiveTab(tab)} className={`relative flex w-full items-center gap-3 rounded-md px-3 py-2.5 text-left text-xs transition-all ${activeTab === tab ? 'bg-[var(--st-elevated)] text-[var(--st-text)] shadow-[0_0_18px_var(--st-glow)]' : 'text-[var(--st-muted)] hover:bg-[var(--st-elevated)] hover:text-[var(--st-text)] hover:shadow-[0_0_22px_rgba(102,0,0,0.28)] hover:ring-1 hover:ring-[var(--st-primary)]/30'}`}><span className={`h-1.5 w-1.5 rounded-full ${activeTab === tab ? 'bg-[var(--st-primary)]' : 'bg-[var(--st-border)]'}`} />{tab}{activeTab === tab && <motion.span layoutId="tab-indicator" className="absolute right-2 h-4 w-0.5 rounded-full bg-[var(--st-primary)]" transition={{ type: 'spring', stiffness: 400, damping: 30 }} />}</button>)}</nav>
       <div className="absolute bottom-5 left-6 right-6 font-mono text-[10px] text-[var(--st-muted)]">SYSTEM ONLINE<br /><span className="text-[var(--st-success)]">● polling every 5s</span></div>
     </aside>
     <div className="lg:pl-64">
@@ -96,11 +94,10 @@ export default function MosswallDashboard() {
       <div className="mb-5 flex gap-2 overflow-x-auto rounded-lg border border-[var(--st-border)] bg-[var(--st-surface)] p-1 lg:hidden">{tabs.map((tab) => <button key={tab} onClick={() => setActiveTab(tab)} className={`whitespace-nowrap rounded-md px-3 py-2 text-[11px] ${activeTab === tab ? 'bg-[var(--st-elevated)] text-[var(--st-text)]' : 'text-[var(--st-muted)]'}`}><Menu size={12} className="mr-1 inline" />{tab}</button>)}</div>
       {apiError && <div className="mb-5 flex items-center gap-2 rounded-lg border border-amber-400/20 px-3 py-2 font-mono text-[11px] text-white font-bold"><AlertTriangle size={14}/> Backend unavailable — showing demo data. Live requests will retry automatically.</div>}
       <section className="mb-8 grid gap-2 md:grid-cols-4">{taxonomy.map(({ icon: Icon, name, description, color }, idx) => {
-        const bgClass = idx === 0 ? 'bg-[#020007]' : 'bg-black';
         const titleSize = [16, 20, 14, 16][idx];
         const cardExtraClass = idx === 1 ? 'rounded-[12px] pt-[17px] pr-[11px] pb-0 pl-[22px] font-bold' : idx === 3 ? 'pt-[19px] pb-0' : '';
-        const centerText = idx === 0 || idx === 1 ? 'text-center' : '';
-        return <SpotlightCard key={name} className={bgClass}><button onClick={() => setExpandedTaxonomy(expandedTaxonomy === name ? null : name)} className="w-full text-left" aria-expanded={expandedTaxonomy === name}><div className={`flex items-center justify-between gap-2 ${cardExtraClass} ${centerText}`}><div className="flex items-center gap-2"><Icon size={14} className={color}/><span className={`font-medium text-white`} style={{fontSize: `${titleSize}px`}}>{name}</span></div><ChevronDown size={12} className={`text-white/30 transition-transform ${expandedTaxonomy === name ? 'rotate-180' : ''}`}/></div><AnimatePresence initial={false}>{expandedTaxonomy === name && <motion.p initial={{ height: 0, opacity: 0 }} animate={{ height: 'auto', opacity: 1 }} exit={{ height: 0, opacity: 0 }} className="mt-2 overflow-hidden text-[11px] leading-relaxed text-white/40">{description}</motion.p>}</AnimatePresence></button></SpotlightCard>
+        const centerText = 'text-center';
+        return <SpotlightCard key={name} className="bg-black"><button onClick={() => setExpandedTaxonomy(expandedTaxonomy === name ? null : name)} className="w-full text-center" aria-expanded={expandedTaxonomy === name}><div className={`flex items-center justify-center gap-2 ${cardExtraClass} ${centerText}`}><div className="flex items-center justify-center gap-2"><Icon size={14} className={color}/><span className="font-medium text-white" style={{fontSize: `${titleSize}px`}}>{name}</span></div><ChevronDown size={12} className={`text-white/30 transition-transform ${expandedTaxonomy === name ? 'rotate-180' : ''}`}/></div><AnimatePresence initial={false}>{expandedTaxonomy === name && <motion.p initial={{ height: 0, opacity: 0 }} animate={{ height: 'auto', opacity: 1 }} exit={{ height: 0, opacity: 0 }} className="mt-2 overflow-hidden text-[11px] leading-relaxed text-white/40">{description}</motion.p>}</AnimatePresence></button></SpotlightCard>
       })}</section>
       <section className={`${activeTab === 'Home' ? 'block' : 'hidden'} mb-8 max-w-3xl`}>
         <div className="rounded-xl border border-[var(--st-border)] bg-white p-6 shadow-[0_0_40px_var(--st-glow)]">
