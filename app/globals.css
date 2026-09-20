@@ -46,7 +46,18 @@
 }
 
 :root {
-  color-scheme: light;
+  color-scheme: dark;
+  --st-bg: #0B0D10;
+  --st-surface: #14171C;
+  --st-elevated: #1B1F26;
+  --st-border: #262B33;
+  --st-primary: #5B8CFF;
+  --st-text: #E8EAED;
+  --st-muted: #8B93A1;
+  --st-success: #3ECF8E;
+  --st-danger: #F0555A;
+  --st-warning: #E8B94D;
+  --st-font-mono: 'JetBrains Mono', ui-monospace, SFMono-Regular, Menlo, monospace;
   --background: #010000;
   --foreground: oklch(0.145 0 0);
   --card: oklch(1 0 0);
@@ -172,6 +183,6 @@
   }
   body {
     @apply bg-background text-foreground;
-    background: #010000;
+    background: var(--st-bg);
   }
 }
