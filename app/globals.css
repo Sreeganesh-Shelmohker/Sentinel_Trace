@@ -92,6 +92,27 @@
   --sidebar-ring: oklch(0.708 0 0);
 }
 
+.light {
+  color-scheme: light;
+  --st-bg: #fafaf4;
+  --st-surface: #ffffff;
+  --st-elevated: #f0eee6;
+  --st-border: #dedbd1;
+  --st-primary: #660000;
+  --st-text: #080805;
+  --st-muted: #5c5a55;
+  --st-success: #041449;
+  --st-danger: #660000;
+  --st-warning: #6200da;
+  --background: #fafaf4;
+  --foreground: #080805;
+  --card: #ffffff;
+  --card-foreground: #080805;
+}
+
+.light .text-white\/90, .light .text-white\/85, .light .text-white\/75, .light .text-white\/70, .light .text-white\/55, .light .text-white\/50, .light .text-white\/45, .light .text-white\/40, .light .text-white\/35, .light .text-white\/30, .light .text-white\/25, .light .text-white\/20 { color: var(--st-text); }
+.light .bg-black\/10 { background-color: rgba(8,8,5,.04); }
+
 .dark {
   color-scheme: dark;
   --background: oklch(0.145 0 0);
@@ -163,6 +184,9 @@
     --sidebar-ring: oklch(0.556 0 0);
   }
 }
+
+.light { --st-glow: rgba(102,0,0,.12); }
+:root { --st-glow: rgba(91,140,255,.12); }
 
 .animate-shimmer {
   background: linear-gradient(110deg, rgba(255,255,255,.45) 35%, #fff 50%, rgba(255,255,255,.45) 65%);
