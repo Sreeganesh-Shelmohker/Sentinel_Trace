@@ -1,7 +1,7 @@
 'use client'
 
 import { useCallback, useEffect, useMemo, useState } from 'react'
-import type { CSSProperties, ReactNode } from 'react'
+import type { CSSProperties, MouseEvent, ReactNode } from 'react'
 import { AnimatePresence, motion, useMotionValue, useSpring } from 'motion/react'
 import { Activity, AlertTriangle, ArrowRight, Ban, Check, ChevronDown, Clock3, Database, GitBranch, Layers3, Menu, Play, Radio, RefreshCw, ShieldCheck, Sparkles, Terminal, Zap } from 'lucide-react'
 
@@ -554,7 +554,7 @@ export default function MosswallDashboard() {
             <div className="mb-5 flex flex-wrap items-baseline gap-x-2 gap-y-1 font-mono text-[10px] uppercase tracking-wider text-white/35">
               <span className="text-white/75">
                 {policies ? (
-                  `${policies.total_patterns ?? policies.total_documents ?? policies.total_count ?? policies.total ?? policies.categories?.reduce((sum, category) => sum + (category.pattern_count ?? category.count ?? 0), 0) ?? 0} patterns`
+                  `${policies.total_patterns ?? policies.total_documents ?? policies.total_count ?? policies.total ?? policies.categories?.reduce((sum: number, category: PolicyCategory) => sum + (category.pattern_count ?? category.count ?? 0), 0) ?? 0} patterns`
                 ) : (
                   <TextShimmer>Loading patterns</TextShimmer>
                 )}
@@ -643,7 +643,7 @@ function SpotlightCard({ children, className = '' }: { children: ReactNode; clas
   const springY = useSpring(y, { stiffness: 220, damping: 25 })
   return (
     <motion.div
-      onMouseMove={(event) => {
+      onMouseMove={(event: MouseEvent<HTMLDivElement>) => {
         const rect = event.currentTarget.getBoundingClientRect()
         x.set(((event.clientX - rect.left) / rect.width) * 100)
         y.set(((event.clientY - rect.top) / rect.height) * 100)
@@ -665,7 +665,7 @@ function TextMorph({ active }: { active: boolean }) {
   const [index, setIndex] = useState(0)
   useEffect(() => {
     if (!active) return
-    const timer = setInterval(() => setIndex((value) => (value + 1) % labels.length), 2200)
+    const timer = setInterval(() => setIndex((value: number) => (value + 1) % labels.length), 2200)
     return () => clearInterval(timer)
   }, [active])
   return (
