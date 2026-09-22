@@ -13,6 +13,7 @@ Endpoints:
     GET  /health                                                   -> {"status": "ok"}
 """
 
+import os
 from contextlib import asynccontextmanager
 from typing import Any, Dict, List, Optional
 
@@ -71,10 +72,19 @@ app = FastAPI(
     lifespan=lifespan,
 )
 
-# Allow all origins so a frontend on any port can call this freely.
+# Configure CORS: allow all origins by default, or specific origins if FRONTEND_URL is set
+frontend_env = os.getenv("FRONTEND_URL") or os.getenv("ALLOWED_ORIGINS")
+if frontend_env:
+    allowed_origins = [o.strip() for o in frontend_env.split(",") if o.strip()]
+    for local_origin in ["http://localhost:3000", "http://127.0.0.1:3000"]:
+        if local_origin not in allowed_origins:
+            allowed_origins.append(local_origin)
+else:
+    allowed_origins = ["*"]
+
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["*"],
+    allow_origins=allowed_origins,
     allow_methods=["*"],
     allow_headers=["*"],
 )
