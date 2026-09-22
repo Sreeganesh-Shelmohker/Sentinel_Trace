@@ -110,11 +110,6 @@
   --card-foreground: #080805;
 }
 
-.light .text-white\/90, .light .text-white\/85, .light .text-white\/75, .light .text-white\/70, .light .text-white\/55, .light .text-white\/50, .light .text-white\/45, .light .text-white\/40, .light .text-white\/35, .light .text-white\/30, .light .text-white\/25, .light .text-white\/20 { color: var(--st-text); }
-.light .text-white { color: var(--st-text); }
-.light .bg-black, .light .bg-black\/10 { background-color: var(--st-surface); }
-.light .bg-white\/\[0\.03\] { background-color: var(--st-elevated); }
-.light .border-white\/\[0\.08\], .light .border-white\/\[0\.07\], .light .border-white\/\[0\.06\], .light .border-white\/\[0\.05\], .light .border-white\/\[0\.14\], .light .border-white\/10 { border-color: var(--st-border); }
 
 .light .animate-shimmer { background: none; color: var(--st-text); animation: none; }
 
