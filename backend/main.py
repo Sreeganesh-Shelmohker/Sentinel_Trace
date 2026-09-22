@@ -9,6 +9,7 @@ Endpoints:
     POST /evaluate/context   {"response": "...", "context": "..."} -> groundedness
     GET  /trace/log                                                -> last 50 traces (newest first)
     GET  /trace/stats                                              -> summary stats from SQLite
+    GET  /policies                                                 -> guardrail patterns breakdown by category
     GET  /health                                                   -> {"status": "ok"}
 """
 
@@ -19,7 +20,13 @@ from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel
 
-from guardrail import GuardrailResult, setup_index, check_input
+from guardrail import (
+    GuardrailResult,
+    setup_index,
+    check_input,
+    GUARDRAIL_DOCUMENTS,
+    INDEX_NAME,
+)
 from evaluator import EvalResult, setup_eval_index, check_groundedness
 from trace_store import init_db, add_trace, get_recent_traces, get_trace_stats
 
@@ -32,8 +39,11 @@ from trace_store import init_db, add_trace, get_recent_traces, get_trace_stats
 async def lifespan(app: FastAPI):
     """Initialize DB and load Moss indexes before the first request arrives."""
     init_db()
-    await setup_index()
-    await setup_eval_index()
+    try:
+        await setup_index()
+        await setup_eval_index()
+    except Exception as exc:
+        print(f"[setup] Note: Moss index initialization deferred: {exc}")
     print()
     print("=" * 60)
     print("  Guardrail + Evaluator + Trace API is ready.")
@@ -41,6 +51,7 @@ async def lifespan(app: FastAPI):
     print("  POST http://localhost:8000/evaluate/context")
     print("  GET  http://localhost:8000/trace/log")
     print("  GET  http://localhost:8000/trace/stats")
+    print("  GET  http://localhost:8000/policies")
     print("  GET  http://localhost:8000/health")
     print("  Docs http://localhost:8000/docs")
     print("=" * 60)
@@ -113,6 +124,31 @@ class TraceStatsResponse(BaseModel):
     guardrail_average_latency_ms: float
     eval_average_latency_ms: float
     average_groundedness: float
+
+
+class PolicyCategory(BaseModel):
+    name: str
+    category: str
+    count: int
+    description: str
+
+
+class PoliciesResponse(BaseModel):
+    index_name: str
+    total_documents: int
+    total_patterns: int
+    total_count: int
+    categories: List[PolicyCategory]
+    by_category: Dict[str, PolicyCategory]
+
+
+CATEGORY_DESCRIPTIONS: Dict[str, str] = {
+    "prompt_injection": "Attempts to override or reveal system instructions",
+    "jailbreak": "Attempts to bypass safety restrictions via persona or framing tricks",
+    "data_exfiltration": "Attempts to extract sensitive config, credentials, or internal data",
+    "tool_abuse": "Attempts to manipulate an agent into unauthorized or unlogged actions",
+    "benign": "Calibration examples used to prevent false positives on ordinary language",
+}
 
 
 # ---------------------------------------------------------------------------
@@ -202,3 +238,39 @@ async def trace_stats():
     - average_groundedness: average score across all context_eval checks
     """
     return get_trace_stats()
+
+
+@app.get("/policies", response_model=PoliciesResponse, tags=["guardrail"])
+async def get_policies():
+    """
+    Return a breakdown of indexed guardrail patterns grouped by category.
+
+    Includes category name, pattern count, fixed description, total count,
+    and index name. Does NOT expose raw pattern prompts.
+    """
+    counts: Dict[str, int] = {}
+    for doc in GUARDRAIL_DOCUMENTS:
+        cat = doc.metadata.get("category") if doc.metadata else "unknown"
+        counts[cat] = counts.get(cat, 0) + 1
+
+    categories_list: List[PolicyCategory] = [
+        PolicyCategory(
+            name=cat,
+            category=cat,
+            count=counts.get(cat, 0),
+            description=desc,
+        )
+        for cat, desc in CATEGORY_DESCRIPTIONS.items()
+    ]
+    by_category = {item.name: item for item in categories_list}
+    total = len(GUARDRAIL_DOCUMENTS)
+
+    return PoliciesResponse(
+        index_name=INDEX_NAME,
+        total_documents=total,
+        total_patterns=total,
+        total_count=total,
+        categories=categories_list,
+        by_category=by_category,
+    )
+

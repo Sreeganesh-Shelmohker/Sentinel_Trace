@@ -3,11 +3,53 @@
 import { useCallback, useEffect, useMemo, useState } from 'react'
 import type { CSSProperties, ReactNode } from 'react'
 import { AnimatePresence, motion, useMotionValue, useSpring } from 'motion/react'
-import { Activity, AlertTriangle, ArrowRight, Ban, Check, ChevronDown, Clock3, Database, GitBranch, Layers3, Play, Radio, RefreshCw, ShieldCheck, Sparkles, Terminal, Zap } from 'lucide-react'
+import { Activity, AlertTriangle, ArrowRight, Ban, Check, ChevronDown, Clock3, Database, GitBranch, Layers3, Menu, Play, Radio, RefreshCw, ShieldCheck, Sparkles, Terminal, Zap } from 'lucide-react'
 
-type GuardrailResult = { blocked: boolean; category?: string | null; matched_pattern?: string | null; score?: number; latency_ms?: number }
-type EvalResult = { grounded: boolean; score?: number; latency_ms?: number; verdict?: string; groundedness_score?: number }
-type TraceLogItem = { id: number; time: string; type: string; verdict: string; score: string; latency: string }
+type GuardrailResult = {
+  blocked: boolean
+  category?: string
+  matched_pattern?: string
+  score?: number
+  similarity?: number
+  latency_ms?: number
+}
+
+type EvalResult = {
+  grounded: boolean
+  verdict?: string
+  score?: number
+  groundedness_score?: number
+  latency_ms?: number
+}
+
+type PolicyCategory = {
+  name?: string
+  category?: string
+  description?: string
+  pattern_count?: number
+  patterns?: number
+  count?: number
+}
+
+type PoliciesResponse = {
+  total_patterns?: number
+  total_documents?: number
+  total_count?: number
+  total?: number
+  categories?: PolicyCategory[]
+  index_name?: string
+  version?: string
+  index?: string
+}
+
+type TraceLogItem = {
+  id: number
+  time: string
+  type: string
+  verdict: string
+  score: string
+  latency: string
+}
 
 const apiBase = process.env.NEXT_PUBLIC_API_BASE_URL || 'http://localhost:8000'
 
@@ -43,7 +85,13 @@ const replays = [
   { title: 'Hidden attack', detail: 'Indirect instruction in retrieved content', verdict: 'BLOCKED', tone: 'red', steps: ['Content scan blocked · 15ms', 'No model call made', 'Category: prompt_injection · hidden attack'] },
 ]
 
-function toneClass(tone: string) { return tone === 'green' ? 'text-[#b70000] bg-[#b70000]/10 border-[#b70000]/20' : tone === 'red' ? 'text-red-400 bg-red-400/10 border-red-400/20' : 'text-amber-300 bg-amber-300/10 border-amber-300/20' }
+function toneClass(tone: string) {
+  return tone === 'green'
+    ? 'text-[#5B8CFF] bg-[#5B8CFF]/10 border-[#5B8CFF]/20'
+    : tone === 'red'
+      ? 'text-red-400 bg-red-400/10 border-red-400/20'
+      : 'text-amber-300 bg-amber-300/10 border-amber-300/20'
+}
 
 export default function MosswallDashboard() {
   const [promptResult, setPromptResult] = useState<Record<string, GuardrailResult | 'loading'>>({})
@@ -52,7 +100,6 @@ export default function MosswallDashboard() {
   const [evalResults, setEvalResults] = useState<Record<string, EvalResult | 'loading'>>({})
   const [expandedReplay, setExpandedReplay] = useState<number | null>(null)
   const [expandedTaxonomy, setExpandedTaxonomy] = useState<string | null>(null)
-  const [projectOpen, setProjectOpen] = useState(false)
   const [stats, setStats] = useState({ total: 1284, blockRate: 18.4, guard: 11, eval: 1840, grounded: 96.2 })
   const [logs, setLogs] = useState<TraceLogItem[]>([
     { id: 1, time: '14:32:08', type: 'guardrail', verdict: 'BLOCKED', score: '0.94', latency: '12ms' },
@@ -61,11 +108,19 @@ export default function MosswallDashboard() {
     { id: 4, time: '14:31:18', type: 'guardrail', verdict: 'BLOCKED', score: '0.91', latency: '14ms' },
   ])
   const [apiError, setApiError] = useState(false)
+  const [policies, setPolicies] = useState<PoliciesResponse | null>(null)
+  const [activeTab, setActiveTab] = useState('Home')
+  const tabs = ['Home', 'Guardrail Check', 'Context Evaluation', 'History', 'Live Dashboard', 'Policies']
 
   const callGuardrail = useCallback(async (value: string, key: string, custom = false) => {
-    if (custom) setCustomResult('loading'); else setPromptResult((prev) => ({ ...prev, [key]: 'loading' }))
+    if (custom) setCustomResult('loading')
+    else setPromptResult((prev) => ({ ...prev, [key]: 'loading' }))
     try {
-      const response = await fetch(`${apiBase}/guardrail/check`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ prompt: value }) })
+      const response = await fetch(`${apiBase}/guardrail/check`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ prompt: value }),
+      })
       if (!response.ok) throw new Error('Request failed')
       const result = await response.json()
       const formatted: GuardrailResult = {
@@ -73,36 +128,49 @@ export default function MosswallDashboard() {
         category: result.category,
         matched_pattern: result.matched_pattern,
         score: result.score,
+        similarity: result.score,
         latency_ms: result.latency_ms,
       }
-      if (custom) setCustomResult(formatted); else setPromptResult((prev) => ({ ...prev, [key]: formatted }))
+      if (custom) setCustomResult(formatted)
+      else setPromptResult((prev) => ({ ...prev, [key]: formatted }))
       setApiError(false)
     } catch {
       setApiError(true)
-      const fallback: GuardrailResult = { blocked: /ignore|DAN|delete_account|refund|transfer|system prompt/i.test(value), category: 'prompt_injection', score: 0.91, latency_ms: 12 }
-      if (custom) setCustomResult(fallback); else setPromptResult((prev) => ({ ...prev, [key]: fallback }))
+      const fallback: GuardrailResult = {
+        blocked: /ignore|DAN|delete_account|refund|transfer|system prompt/i.test(value),
+        category: 'prompt_injection',
+        score: 0.91,
+        similarity: 0.91,
+        latency_ms: 12,
+      }
+      if (custom) setCustomResult(fallback)
+      else setPromptResult((prev) => ({ ...prev, [key]: fallback }))
     }
   }, [])
 
   const callEval = useCallback(async (item: typeof contexts[number]) => {
     setEvalResults((prev) => ({ ...prev, [item.label]: 'loading' }))
     try {
-      const response = await fetch(`${apiBase}/evaluate/context`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ response: item.response, context: item.context }) })
+      const response = await fetch(`${apiBase}/evaluate/context`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ response: item.response, context: item.context }),
+      })
       if (!response.ok) throw new Error()
       const result = await response.json()
-      const isGrounded = result.verdict ? (result.verdict.toLowerCase() === 'grounded') : Boolean(result.grounded)
+      const isGrounded = result.verdict
+        ? result.verdict.toLowerCase() === 'grounded'
+        : Boolean(result.grounded)
       const scoreVal = result.groundedness_score ?? result.score ?? 0
       const latencyVal = result.latency_ms ?? 0
-      setEvalResults((prev) => ({
-        ...prev,
-        [item.label]: {
-          grounded: isGrounded,
-          score: scoreVal,
-          latency_ms: latencyVal,
-          verdict: result.verdict,
-          groundedness_score: scoreVal,
-        }
-      }))
+      const formatted: EvalResult = {
+        grounded: isGrounded,
+        verdict: result.verdict,
+        score: scoreVal,
+        groundedness_score: scoreVal,
+        latency_ms: latencyVal,
+      }
+      setEvalResults((prev) => ({ ...prev, [item.label]: formatted }))
       setApiError(false)
     } catch {
       setApiError(true)
@@ -111,8 +179,9 @@ export default function MosswallDashboard() {
         [item.label]: {
           grounded: item.label !== 'Ungrounded',
           score: item.label === 'Grounded' ? 0.94 : 0.52,
-          latency_ms: 1840
-        }
+          groundedness_score: item.label === 'Grounded' ? 0.94 : 0.52,
+          latency_ms: 1840,
+        },
       }))
     }
   }, [])
@@ -125,7 +194,9 @@ export default function MosswallDashboard() {
           const data = await statsRes.json()
           setStats({
             total: data.total_checks ?? data.total ?? 0,
-            blockRate: typeof data.block_rate === 'number' ? Number(data.block_rate.toFixed(1)) : (data.blockRate ?? 0),
+            blockRate: typeof data.block_rate === 'number'
+              ? Number(data.block_rate.toFixed(1))
+              : (data.blockRate ?? 0),
             guard: Math.round(data.guardrail_average_latency_ms ?? data.guard ?? 0),
             eval: Math.round(data.eval_average_latency_ms ?? data.eval ?? 0),
             grounded: typeof data.average_groundedness === 'number'
@@ -169,6 +240,7 @@ export default function MosswallDashboard() {
             })
             setLogs(mapped)
           }
+          setApiError(false)
         }
       } catch {
         setApiError(true)
@@ -179,31 +251,480 @@ export default function MosswallDashboard() {
     return () => clearInterval(timer)
   }, [])
 
-  const statItems = useMemo(() => [
-    ['Total checks', stats.total.toLocaleString(), 'live audit count'],
-    ['Block rate', `${stats.blockRate}%`, 'threat filter rate'],
-    ['Avg guardrail', `${stats.guard}ms`, 'real-time p95'],
-    ['Avg evaluation', `${(stats.eval / 1000).toFixed(1)}s`, 'background async'],
-    ['Groundedness', `${stats.grounded}%`, 'average score']
-  ], [stats])
+  useEffect(() => {
+    const loadPolicies = async () => {
+      try {
+        const response = await fetch(`${apiBase}/policies`)
+        if (!response.ok) throw new Error()
+        const data = await response.json()
+        setPolicies(data)
+        setApiError(false)
+      } catch {
+        setApiError(true)
+      }
+    }
+    loadPolicies()
+  }, [])
 
-  return <main className="min-h-screen bg-[#010000] text-white selection:bg-[#b70000]/30">
-    <header className="border-b border-white/[0.08] px-5 py-5 sm:px-8"><div className="mx-auto flex max-w-[1440px] items-start justify-between gap-6"><div><div className="flex items-center gap-3"><div className="h-9 w-9 overflow-hidden rounded-full border border-[#b70000]/60 bg-[#1a0808] p-1"><img src="https://hebbkx1anhila5yf.public.blob.vercel-storage.com/Sentinel%20Trace-0HvhwKqlgsZ4gqOF2pDOuqO6CTR7ea.png" alt="Sentinel Trace logo" className="h-full w-full rounded-full object-cover" /></div><h1 className="text-xl font-semibold tracking-tight">Sentinel Trace</h1><span className="rounded-full border border-[#b70000]/20 bg-[#b70000]/10 px-2 py-0.5 font-mono text-[10px] uppercase tracking-widest text-[#b70000]">live</span></div><p className="mt-3 text-sm text-white/70">Real-time AI agent guardrails and continuous evaluation, powered by Moss.</p><p className="mt-1 font-mono text-[10px] uppercase tracking-wider text-white/35">Sub-15ms threat detection · Background groundedness checks · Full audit trail.</p><button onClick={() => setProjectOpen(!projectOpen)} className="mt-4 flex items-center gap-2 font-mono text-[10px] uppercase tracking-wider text-[#b70000] hover:text-white" aria-expanded={projectOpen}>Project details <ChevronDown size={12} className={projectOpen ? 'rotate-180 transition-transform' : 'transition-transform'} /></button><AnimatePresence initial={false}>{projectOpen && <motion.div initial={{ height: 0, opacity: 0 }} animate={{ height: 'auto', opacity: 1 }} exit={{ height: 0, opacity: 0 }} className="overflow-hidden"><p className="max-w-xl pt-3 text-xs leading-relaxed text-white/45">Sentinel Trace monitors AI agent behavior across guardrails, model responses, and groundedness checks, giving every run an auditable trail.</p></motion.div>}</AnimatePresence></div><div className="hidden items-center gap-2 rounded-lg border border-white/[0.08] bg-white/[0.03] px-3 py-2 font-mono text-[10px] text-white/45 sm:flex"><Radio size={12} className="text-[#b70000]"/> API CONNECTED <span className="text-white/20">·</span> 5s polling</div></div></header>
-    <div className="mx-auto max-w-[1440px] px-5 py-6 sm:px-8">
-      {apiError && <div className="mb-5 flex items-center gap-2 rounded-lg border border-amber-400/20 bg-amber-400/[0.07] px-3 py-2 font-mono text-[11px] text-amber-200"><AlertTriangle size={14}/> Backend unavailable — showing demo data. Live requests will retry automatically.</div>}
-      <section className="mb-8 grid gap-2 md:grid-cols-4">{taxonomy.map(({ icon: Icon, name, description, color }) => <SpotlightCard key={name}><button onClick={() => setExpandedTaxonomy(expandedTaxonomy === name ? null : name)} className="w-full text-left" aria-expanded={expandedTaxonomy === name}><div className="flex items-center justify-between gap-2"><div className="flex items-center gap-2"><Icon size={14} className={color}/><span className="text-xs font-medium text-white/85">{name}</span></div><ChevronDown size={12} className={`text-white/30 transition-transform ${expandedTaxonomy === name ? 'rotate-180' : ''}`}/></div><AnimatePresence initial={false}>{expandedTaxonomy === name && <motion.p initial={{ height: 0, opacity: 0 }} animate={{ height: 'auto', opacity: 1 }} exit={{ height: 0, opacity: 0 }} className="mt-2 overflow-hidden text-[11px] leading-relaxed text-white/40">{description}</motion.p>}</AnimatePresence></button></SpotlightCard>)}</section>
-      <div className="grid gap-8 xl:grid-cols-[1.4fr_0.8fr]">
-        <section><SectionHeading icon={Zap} eyebrow="LIVE CONTROL" title="Guardrail check" description="Test prompts against Moss semantic threat patterns."/><div className="grid gap-2 sm:grid-cols-2 lg:grid-cols-3">{prompts.map(([label, text]) => { const result = promptResult[text]; return <button key={text} onClick={() => callGuardrail(text, text)} className="group rounded-lg border border-white/[0.08] bg-[#0f0521] p-3 text-left transition-all hover:-translate-y-0.5 hover:border-[#b70000]/30 hover:bg-[#11161a]"><div className="flex items-center justify-between"><span className="text-[11px] font-semibold text-white/75">{label}</span><ArrowRight size={13} className="text-white/20 transition-transform group-hover:translate-x-0.5 group-hover:text-[#b70000]"/></div><p className="mt-2 line-clamp-2 text-xs leading-relaxed text-white/40">{text}</p>{result && <ResultPill result={result}/>}</button> })}</div><div className="mt-3 flex gap-2"><input value={customPrompt} onChange={(e) => setCustomPrompt(e.target.value)} onKeyDown={(e) => { if (e.key === 'Enter' && !e.nativeEvent.isComposing && e.keyCode !== 229 && customPrompt.trim()) callGuardrail(customPrompt, 'custom', true) }} placeholder="Try a custom prompt..." className="min-w-0 flex-1 rounded-lg border border-white/[0.1] bg-[#0f0521] px-3 py-2.5 text-xs text-white outline-none placeholder:text-white/25 focus:border-[#b70000]/50"/><button onClick={() => customPrompt.trim() && callGuardrail(customPrompt, 'custom', true)} className="rounded-lg bg-[#b70000] px-4 text-xs font-semibold text-white transition-colors hover:bg-[#dbe9de]">Check</button></div>{customResult && <div className="mt-2 rounded-lg border border-white/[0.08] bg-[#0f0521] p-3"><ResultPill result={customResult}/></div>}
-        <div className="mt-10"><SectionHeading icon={Layers3} eyebrow="BACKGROUND EVALUATION" title="Context groundedness" description="Verify responses stay anchored to trusted context."/><div className="space-y-2">{contexts.map((item) => { const result = evalResults[item.label]; return <div key={item.label} className="rounded-lg border border-white/[0.08] bg-[#0f0521] p-3"><div className="flex items-center justify-between"><div className="flex items-center gap-2"><span className={`h-1.5 w-1.5 rounded-full ${item.tone === 'green' ? 'bg-[#b70000]' : item.tone === 'red' ? 'bg-red-400' : 'bg-amber-300'}`}/><span className="text-xs font-medium text-white/75">{item.label} example</span></div><button onClick={() => callEval(item)} className="rounded-md border border-white/10 px-2 py-1 font-mono text-[10px] text-white/45 hover:border-white/25 hover:text-white">Run check <Play size={10} className="ml-1 inline"/></button></div><div className="mt-3 grid gap-2 sm:grid-cols-2"><div className="rounded border border-white/[0.06] bg-black/10 p-2"><div className="font-mono text-[9px] uppercase text-white/25">response</div><p className="mt-1 text-[11px] leading-relaxed text-white/55">{item.response}</p></div><div className="rounded border border-white/[0.06] bg-black/10 p-2"><div className="font-mono text-[9px] uppercase text-white/25">context</div><p className="mt-1 text-[11px] leading-relaxed text-white/55">{item.context}</p></div></div>{result && <div className="mt-2 font-mono text-[10px] text-white/50">{result === 'loading' ? 'Checking in background (~8s)...' : <><span className={result.grounded ? 'text-[#b70000]' : 'text-red-400'}>{result.grounded ? 'GROUNDED' : 'UNGROUNDED'}</span> · score {(result.groundedness_score ?? result.score ?? 0).toFixed(2)} · {result.latency_ms != null ? (result.latency_ms >= 1000 ? `${(result.latency_ms / 1000).toFixed(1)}s` : `${Math.round(result.latency_ms)}ms`) : ''}</>}</div>}</div> })}</div></div></section>
-        <aside><SectionHeading icon={Activity} eyebrow="OBSERVABILITY" title="Live trace" description="Rolling telemetry from your agent runtime."/><div className="grid grid-cols-2 gap-2 sm:grid-cols-3 xl:grid-cols-2">{statItems.map(([label, value, sub]) => <SpotlightCard key={label}><div className="font-mono text-[10px] uppercase tracking-wider text-white/35">{label}</div><AnimatedNumber value={value}/><div className="mt-1 text-[10px] text-white/30">{sub}</div></SpotlightCard>)}</div><div className="mt-3 overflow-hidden rounded-lg border border-white/[0.08] bg-[#0f0521]"><div className="flex items-center justify-between border-b border-white/[0.07] px-3 py-2"><span className="font-mono text-[10px] uppercase tracking-wider text-white/40">Recent events</span><RefreshCw size={12} className="text-white/25"/></div><div className="divide-y divide-white/[0.05]">{logs.map((log) => <div key={`${log.id}-${log.time}`} className="grid grid-cols-[58px_1fr_auto] items-center gap-2 px-3 py-2 font-mono text-[10px]"><span className="text-white/30">{log.time}</span><span className="text-white/50">{log.type}</span><span className={log.verdict === 'BLOCKED' ? 'text-red-400' : 'text-[#b70000]'}>{log.verdict} <span className="text-white/25">{log.latency}</span></span></div>)}</div><button className="w-full border-t border-white/[0.07] py-2 text-[10px] text-white/35 hover:text-white/70">View full trace log <ArrowRight size={11} className="ml-1 inline"/></button></div></aside>
+  const statItems = useMemo(
+    () => [
+      ['Total checks', stats.total.toLocaleString(), 'recorded traces'],
+      ['Block rate', `${stats.blockRate}%`, 'threat detection rate'],
+      ['Avg guardrail', `${stats.guard}ms`, 'real-time inference'],
+      ['Avg evaluation', `${(stats.eval / 1000).toFixed(1)}s`, 'background analysis'],
+      ['Groundedness', `${stats.grounded}%`, 'average context fidelity'],
+    ],
+    [stats]
+  )
+
+  return (
+    <main className="light min-h-screen bg-[var(--st-bg)] text-[var(--st-text)] selection:bg-[var(--st-primary)]/30">
+      <aside className="fixed inset-y-0 left-0 z-20 hidden w-64 border-r border-[var(--st-border)] bg-[var(--st-surface)] p-4 lg:block">
+        <div className="mb-8 flex items-center gap-3 px-2">
+          <div className="h-9 w-9 overflow-hidden rounded-full border border-[var(--st-primary)]/60 bg-[var(--st-bg)] p-1">
+            <img
+              src="https://hebbkx1anhila5yf.public.blob.vercel-storage.com/Sentinel%20Trace-0HvhwKqlgsZ4gqOF2pDOuqO6CTR7ea.png"
+              alt="Sentinel Trace logo"
+              className="h-full w-full rounded-full object-cover"
+            />
+          </div>
+          <span className="font-semibold tracking-tight">Sentinel Trace</span>
+        </div>
+        <nav aria-label="Dashboard sections" className="space-y-1">
+          {tabs.map((tab) => (
+            <button
+              key={tab}
+              onClick={() => setActiveTab(tab)}
+              className={`relative flex w-full items-center gap-3 rounded-md px-3 py-2.5 text-left text-xs transition-all ${
+                activeTab === tab
+                  ? 'bg-[var(--st-elevated)] text-[var(--st-text)] shadow-[0_0_18px_var(--st-glow)]'
+                  : 'text-[var(--st-muted)] hover:bg-[var(--st-elevated)] hover:text-[var(--st-text)] hover:shadow-[0_0_22px_rgba(102,0,0,0.28)] hover:ring-1 hover:ring-[var(--st-primary)]/30'
+              }`}
+            >
+              <span className={`h-1.5 w-1.5 rounded-full ${activeTab === tab ? 'bg-[var(--st-primary)]' : 'bg-[var(--st-border)]'}`} />
+              {tab}
+              {activeTab === tab && (
+                <motion.span
+                  layoutId="tab-indicator"
+                  className="absolute right-2 h-4 w-0.5 rounded-full bg-[var(--st-primary)]"
+                  transition={{ type: 'spring', stiffness: 400, damping: 30 }}
+                />
+              )}
+            </button>
+          ))}
+        </nav>
+        <div className="absolute bottom-5 left-6 right-6 font-mono text-[10px] text-[var(--st-muted)]">
+          SYSTEM ONLINE<br />
+          <span className="text-[var(--st-success)]">● polling every 5s</span>
+        </div>
+      </aside>
+
+      <div className="lg:pl-64">
+        <header className="border-b border-[var(--st-border)] px-5 sm:px-8"></header>
+        <div className="mx-auto max-w-[1440px] px-5 py-6 sm:px-8">
+          <div className="mb-5 flex gap-2 overflow-x-auto rounded-lg border border-[var(--st-border)] bg-[var(--st-surface)] p-1 lg:hidden">
+            {tabs.map((tab) => (
+              <button
+                key={tab}
+                onClick={() => setActiveTab(tab)}
+                className={`whitespace-nowrap rounded-md px-3 py-2 text-[11px] ${
+                  activeTab === tab ? 'bg-[var(--st-elevated)] text-[var(--st-text)]' : 'text-[var(--st-muted)]'
+                }`}
+              >
+                <Menu size={12} className="mr-1 inline" />
+                {tab}
+              </button>
+            ))}
+          </div>
+
+          {apiError && (
+            <div className="mb-5 flex items-center gap-2 rounded-lg border border-amber-400/20 px-3 py-2 font-mono text-[11px] text-white font-bold">
+              <AlertTriangle size={14} /> Backend unavailable — showing demo data. Live requests will retry automatically.
+            </div>
+          )}
+
+          <section className="mb-8 grid gap-2 md:grid-cols-4">
+            {taxonomy.map(({ icon: Icon, name, description, color }, idx) => {
+              const titleSize = [16, 20, 14, 16][idx]
+              const cardExtraClass = idx === 1 ? 'rounded-[12px] pt-[17px] pr-[11px] pb-0 pl-[22px] font-bold' : idx === 3 ? 'pt-[19px] pb-0' : ''
+              const centerText = 'text-center'
+              return (
+                <SpotlightCard key={name}>
+                  <button
+                    onClick={() => setExpandedTaxonomy(expandedTaxonomy === name ? null : name)}
+                    className="w-full text-center"
+                    aria-expanded={expandedTaxonomy === name}
+                  >
+                    <div className={`flex items-center justify-center gap-2 ${cardExtraClass} ${centerText}`}>
+                      <div className="flex items-center justify-center gap-2">
+                        <Icon size={14} className={color} />
+                        <span className="font-medium text-white" style={{ fontSize: `${titleSize}px` }}>{name}</span>
+                      </div>
+                      <ChevronDown
+                        size={12}
+                        className={`text-white/30 transition-transform ${expandedTaxonomy === name ? 'rotate-180' : ''}`}
+                      />
+                    </div>
+                    <AnimatePresence initial={false}>
+                      {expandedTaxonomy === name && (
+                        <motion.p
+                          initial={{ height: 0, opacity: 0 }}
+                          animate={{ height: 'auto', opacity: 1 }}
+                          exit={{ height: 0, opacity: 0 }}
+                          className="mt-2 overflow-hidden text-[11px] leading-relaxed text-white/40"
+                        >
+                          {description}
+                        </motion.p>
+                      )}
+                    </AnimatePresence>
+                  </button>
+                </SpotlightCard>
+              )
+            })}
+          </section>
+
+          {/* Tab 1: Home Overview */}
+          <section className={`${activeTab === 'Home' ? 'block' : 'hidden'} mb-8 max-w-3xl`}>
+            <div className="rounded-xl border border-[var(--st-border)] bg-white p-6 shadow-[0_0_40px_var(--st-glow)]">
+              <div className="flex items-center gap-3">
+                <div className="flex size-12 items-center justify-center rounded-[17px] border border-[var(--st-primary)]/50 bg-[var(--st-bg)] p-1">
+                  <img
+                    src="https://hebbkx1anhila5yf.public.blob.vercel-storage.com/Sentinel%20Trace-0HvhwKqlgsZ4gqOF2pDOuqO6CTR7ea.png"
+                    alt="Sentinel Trace logo"
+                    className="size-full rounded-[17px] object-cover"
+                  />
+                </div>
+                <div className="flex items-center gap-2">
+                  <div className="font-mono text-[24px] font-bold uppercase tracking-[0.2em] leading-none text-[var(--st-primary)]">Sentinel Trace</div>
+                  <div className="inline-flex shrink-0 items-center rounded-full border border-[var(--st-border)] bg-[var(--st-surface)] px-2 py-0 font-mono text-[10px] uppercase leading-none tracking-widest text-[var(--st-primary)]">live</div>
+                </div>
+              </div>
+              <p className="mt-8 max-w-2xl text-2xl font-semibold tracking-tight text-black">Real-time AI agent guardrails and continuous evaluation, powered by Moss.</p>
+              <p className="mt-3 font-mono text-[10px] uppercase tracking-wider text-gray-700">Sub-15ms threat detection · Background groundedness checks · Full audit trail.</p>
+              <div className="mt-8 border-t border-gray-200 pt-5">
+                <div className="font-mono text-[10px] font-bold uppercase tracking-[0.2em] text-[var(--st-primary)]">Project details</div>
+                <p className="mt-3 max-w-2xl text-sm leading-relaxed text-gray-600">Sentinel Trace monitors AI agent behavior across guardrails, model responses, and groundedness checks, giving every run an auditable trail.</p>
+              </div>
+            </div>
+          </section>
+
+          {/* Tab 2: Guardrail Check */}
+          <section className={`${activeTab === 'Guardrail Check' ? 'block' : 'hidden'} mb-8`}>
+            <SectionHeading icon={Zap} eyebrow="LIVE CONTROL" title="Guardrail check" description="Test prompts against Moss semantic threat patterns." />
+            <div className="grid gap-2 sm:grid-cols-2 lg:grid-cols-3">
+              {prompts.map(([label, text]) => {
+                const result = promptResult[text]
+                return (
+                  <button
+                    key={text}
+                    onClick={() => callGuardrail(text, text)}
+                    className="group rounded-lg border border-white/[0.08] bg-[var(--st-surface)] p-3 text-left transition-all hover:-translate-y-0.5 hover:border-[#5B8CFF]/30 hover:bg-[var(--st-elevated)]"
+                  >
+                    <div className="flex items-center justify-between">
+                      <span className="text-[11px] font-semibold text-white/75">{label}</span>
+                      <ArrowRight size={13} className="text-white/20 transition-transform group-hover:translate-x-0.5 group-hover:text-[#5B8CFF]" />
+                    </div>
+                    <p className="mt-2 line-clamp-2 text-xs leading-relaxed text-white/40">{text}</p>
+                    {result && <ResultPill result={result} />}
+                  </button>
+                )
+              })}
+            </div>
+            <div className="mt-3 flex gap-2">
+              <div className="relative min-w-0 flex-1">
+                <input
+                  value={customPrompt}
+                  onChange={(e) => setCustomPrompt(e.target.value)}
+                  onKeyDown={(e) => {
+                    if (e.key === 'Enter' && !e.nativeEvent.isComposing && e.keyCode !== 229 && customPrompt.trim()) {
+                      callGuardrail(customPrompt, 'custom', true)
+                    }
+                  }}
+                  placeholder="Try a custom prompt..."
+                  className="min-w-0 flex-1 w-full rounded-lg border border-white/[0.1] bg-[var(--st-surface)] px-3 py-2.5 text-xs text-white outline-none placeholder:text-white/25 focus:border-[#5B8CFF]/50"
+                />
+                <TextMorph active={!customPrompt} />
+              </div>
+              <button
+                onClick={() => customPrompt.trim() && callGuardrail(customPrompt, 'custom', true)}
+                className="rounded-lg bg-[#5B8CFF] px-4 text-xs font-semibold text-white transition-colors hover:bg-[#7AA3FF]"
+              >
+                Check
+              </button>
+            </div>
+            {customResult && (
+              <div className="mt-2 rounded-lg border border-white/[0.08] bg-[var(--st-surface)] p-3">
+                <ResultPill result={customResult} />
+              </div>
+            )}
+          </section>
+
+          {/* Tab 3: Context Evaluation */}
+          <section className={`${activeTab === 'Context Evaluation' ? 'block' : 'hidden'} mb-8`}>
+            <SectionHeading icon={Layers3} eyebrow="BACKGROUND EVALUATION" title="Context groundedness" description="Verify responses stay anchored to trusted context." />
+            <div className="space-y-2">
+              {contexts.map((item) => {
+                const result = evalResults[item.label]
+                return (
+                  <div key={item.label} className="rounded-lg border border-white/[0.08] bg-[var(--st-surface)] p-3">
+                    <div className="flex items-center justify-between">
+                      <div className="flex items-center gap-2">
+                        <span className={`h-1.5 w-1.5 rounded-full ${item.tone === 'green' ? 'bg-[#5B8CFF]' : item.tone === 'red' ? 'bg-red-400' : 'bg-amber-300'}`} />
+                        <span className="text-xs font-medium text-white/75">{item.label} example</span>
+                      </div>
+                      <button
+                        onClick={() => callEval(item)}
+                        className="rounded-md border border-white/10 px-2 py-1 font-mono text-[10px] text-white/45 hover:border-white/25 hover:text-white"
+                      >
+                        Run check <Play size={10} className="ml-1 inline" />
+                      </button>
+                    </div>
+                    <div className="mt-3 grid gap-2 sm:grid-cols-2">
+                      <div className="rounded border border-white/[0.06] bg-black/10 p-2">
+                        <div className="font-mono text-[9px] uppercase text-white/25">response</div>
+                        <p className="mt-1 text-[11px] leading-relaxed text-white/55">{item.response}</p>
+                      </div>
+                      <div className="rounded border border-white/[0.06] bg-black/10 p-2">
+                        <div className="font-mono text-[9px] uppercase text-white/25">context</div>
+                        <p className="mt-1 text-[11px] leading-relaxed text-white/55">{item.context}</p>
+                      </div>
+                    </div>
+                    {result && (
+                      <div className="mt-2 font-mono text-[10px] text-white/50">
+                        {result === 'loading' ? (
+                          'Checking in background (~8s)...'
+                        ) : (
+                          <>
+                            <span className={result.grounded ? 'text-[#5B8CFF]' : 'text-red-400'}>
+                              {result.grounded ? 'GROUNDED' : 'UNGROUNDED'}
+                            </span>{' '}
+                            · score {(result.groundedness_score ?? result.score ?? 0).toFixed(2)} ·{' '}
+                            {result.latency_ms != null
+                              ? result.latency_ms >= 1000
+                                ? `${(result.latency_ms / 1000).toFixed(1)}s`
+                                : `${Math.round(result.latency_ms)}ms`
+                              : ''}
+                          </>
+                        )}
+                      </div>
+                    )}
+                  </div>
+                )
+              })}
+            </div>
+          </section>
+
+          {/* Tab 4: Live Dashboard */}
+          <section className={`${activeTab === 'Live Dashboard' ? 'block' : 'hidden'} mb-8`}>
+            <SectionHeading icon={Activity} eyebrow="OBSERVABILITY" title="Live trace" description="Rolling telemetry from your agent runtime." />
+            <div className="grid grid-cols-2 gap-2 sm:grid-cols-3 lg:grid-cols-5">
+              {statItems.map(([label, value, sub]) => (
+                <SpotlightCard key={label}>
+                  <div className="font-mono text-[10px] uppercase tracking-wider text-white/35">{label}</div>
+                  <AnimatedNumber value={value} />
+                  <div className="mt-1 text-[10px] text-white/30">{sub}</div>
+                </SpotlightCard>
+              ))}
+            </div>
+            <div className="mt-4 overflow-hidden rounded-lg border border-white/[0.08] bg-[var(--st-surface)]">
+              <div className="flex items-center justify-between border-b border-white/[0.07] px-3 py-2">
+                <span className="font-mono text-[10px] uppercase tracking-wider text-white/40">Recent events</span>
+                <RefreshCw size={12} className="text-white/25" />
+              </div>
+              <div className="divide-y divide-white/[0.05]">
+                {logs.map((log) => (
+                  <div key={`${log.id}-${log.time}`} className="grid grid-cols-[80px_1fr_auto] items-center gap-2 px-3 py-2 font-mono text-[10px]">
+                    <span className="text-white/30">{log.time}</span>
+                    <span className="text-white/50">{log.type}</span>
+                    <span className={log.verdict === 'BLOCKED' ? 'text-red-400' : 'text-[#5B8CFF]'}>
+                      {log.verdict} <span className="text-white/25">{log.latency}</span>
+                    </span>
+                  </div>
+                ))}
+              </div>
+              <div className="w-full border-t border-white/[0.07] py-2 text-center text-[10px] text-white/35">
+                Live audit trail ({logs.length} events loaded)
+              </div>
+            </div>
+          </section>
+
+          {/* Tab 5: Policies */}
+          <section className={`mb-8 ${activeTab === 'Policies' ? 'block' : 'hidden'}`}>
+            <SectionHeading icon={ShieldCheck} eyebrow="POLICY LIBRARY" title="Threat patterns" description="Indexed semantic guardrails used across the Sentinel Trace pipeline." />
+            <div className="mb-5 flex flex-wrap items-baseline gap-x-2 gap-y-1 font-mono text-[10px] uppercase tracking-wider text-white/35">
+              <span className="text-white/75">
+                {policies ? (
+                  `${policies.total_patterns ?? policies.total_documents ?? policies.total_count ?? policies.total ?? policies.categories?.reduce((sum, category) => sum + (category.pattern_count ?? category.count ?? 0), 0) ?? 0} patterns`
+                ) : (
+                  <TextShimmer>Loading patterns</TextShimmer>
+                )}
+              </span>
+              <span>across {policies?.categories?.length ?? 0} categories</span>
+              <span>· {policies?.index_name ?? policies?.version ?? policies?.index ?? 'guardrail-patterns-v2'}</span>
+            </div>
+            <div className="grid gap-2 sm:grid-cols-2 xl:grid-cols-5">
+              {(policies?.categories ?? []).map((category) => {
+                const name = category.name ?? category.category ?? 'Uncategorized'
+                const threat = !['benign', 'benign_data', 'calibration'].includes(name.toLowerCase())
+                return (
+                  <SpotlightCard
+                    key={name}
+                    className={
+                      threat
+                        ? 'hover:border-red-400/40 [background-image:radial-gradient(circle_at_var(--spot-x)_var(--spot-y),rgba(248,113,113,0.16),transparent_42%)]'
+                        : 'hover:border-white/20'
+                    }
+                  >
+                    <div className="flex min-h-32 flex-col justify-between">
+                      <div>
+                        <div className={`font-mono text-[10px] uppercase tracking-wider ${threat ? 'text-red-400/70' : 'text-white/35'}`}>{name}</div>
+                        <p className="mt-2 text-[11px] leading-relaxed text-white/40">{category.description ?? 'Indexed policy patterns for this category.'}</p>
+                      </div>
+                      <div className={`mt-5 text-4xl font-semibold tracking-tight ${threat ? 'text-red-400' : 'text-white/70'}`}>
+                        {category.count ?? category.pattern_count ?? category.patterns ?? 0}
+                      </div>
+                    </div>
+                  </SpotlightCard>
+                )
+              })}
+              {!policies && (
+                <div className="col-span-full rounded-lg border border-white/[0.08] bg-[var(--st-surface)] p-5 font-mono text-[11px] text-white/35">
+                  <TextShimmer>Loading policy catalog...</TextShimmer>
+                </div>
+              )}
+            </div>
+          </section>
+
+          {/* Tab 6: History */}
+          <section className={`mb-8 ${activeTab === 'History' ? 'block' : 'hidden'}`}>
+            <SectionHeading icon={GitBranch} eyebrow="RECORDED RUNS" title="History / replay gallery" description="Illustrative pipeline traces from previous agent runs." />
+            <div className="grid gap-2 md:grid-cols-2 xl:grid-cols-3">
+              {replays.map((item, index) => (
+                <button
+                  key={item.title}
+                  onClick={() => setExpandedReplay(expandedReplay === index ? null : index)}
+                  className="rounded-lg border border-dashed border-white/[0.14] bg-[var(--st-surface)] p-3 text-left transition-colors hover:border-white/25"
+                >
+                  <div className="flex items-start justify-between gap-3">
+                    <div>
+                      <div className="text-xs font-medium text-white/75">{item.title}</div>
+                      <div className="mt-1 text-[11px] text-white/35">{item.detail}</div>
+                    </div>
+                    <span className={`rounded border px-1.5 py-0.5 font-mono text-[9px] ${toneClass(item.tone)}`}>{item.verdict}</span>
+                  </div>
+                  {expandedReplay === index && (
+                    <div className="mt-4 space-y-2 border-t border-white/[0.07] pt-3">
+                      {item.steps.map((step, i) => (
+                        <div key={step} className="flex items-center gap-2 text-[10px] text-white/50">
+                          <span className="flex h-4 w-4 shrink-0 items-center justify-center rounded-full bg-white/[0.08] font-mono text-[9px] text-white/45">{i + 1}</span>
+                          {step}
+                        </div>
+                      ))}
+                    </div>
+                  )}
+                  <div className="mt-3 flex items-center justify-between font-mono text-[9px] uppercase tracking-wider text-white/25">
+                    <span>Recorded trace</span>
+                    <ChevronDown size={12} className={`transition-transform ${expandedReplay === index ? 'rotate-180' : ''}`} />
+                  </div>
+                </button>
+              ))}
+            </div>
+          </section>
+        </div>
       </div>
-      <section className="mt-12 border-t border-white/[0.08] pt-8"><SectionHeading icon={GitBranch} eyebrow="RECORDED RUNS" title="History / replay gallery" description="Illustrative pipeline traces from previous agent runs."/><div className="grid gap-2 md:grid-cols-2 xl:grid-cols-3">{replays.map((item, index) => <button key={item.title} onClick={() => setExpandedReplay(expandedReplay === index ? null : index)} className="rounded-lg border border-dashed border-white/[0.14] bg-[#0f0521] p-3 text-left transition-colors hover:border-white/25"><div className="flex items-start justify-between gap-3"><div><div className="text-xs font-medium text-white/75">{item.title}</div><div className="mt-1 text-[11px] text-white/35">{item.detail}</div></div><span className={`rounded border px-1.5 py-0.5 font-mono text-[9px] ${toneClass(item.tone)}`}>{item.verdict}</span></div>{expandedReplay === index && <div className="mt-4 space-y-2 border-t border-white/[0.07] pt-3">{item.steps.map((step, i) => <div key={step} className="flex items-center gap-2 text-[10px] text-white/50"><span className="flex h-4 w-4 shrink-0 items-center justify-center rounded-full bg-white/[0.08] font-mono text-[9px] text-white/45">{i + 1}</span>{step}</div>)}</div>}<div className="mt-3 flex items-center justify-between font-mono text-[9px] uppercase tracking-wider text-white/25"><span>Recorded trace</span><ChevronDown size={12} className={`transition-transform ${expandedReplay === index ? 'rotate-180' : ''}`}/></div></button>)}</div></section>
-    </div>
-  </main>
+    </main>
+  )
 }
 
-function SpotlightCard({ children }: { children: ReactNode }) { const x = useMotionValue(50); const y = useMotionValue(50); const springX = useSpring(x, { stiffness: 220, damping: 25 }); const springY = useSpring(y, { stiffness: 220, damping: 25 }); return <motion.div onMouseMove={(event) => { const rect = event.currentTarget.getBoundingClientRect(); x.set(((event.clientX - rect.left) / rect.width) * 100); y.set(((event.clientY - rect.top) / rect.height) * 100) }} style={{ '--spot-x': springX, '--spot-y': springY } as CSSProperties} className="group rounded-lg border border-white/[0.08] bg-[#0f0521] p-3 transition-colors hover:border-[#b70000]/40 [background-image:radial-gradient(circle_at_var(--spot-x)_var(--spot-y),rgba(183,0,0,0.18),transparent_42%)]">{children}</motion.div> }
-function AnimatedNumber({ value }: { value: string }) { return <motion.div key={value} initial={{ opacity: 0, y: 5 }} animate={{ opacity: 1, y: 0 }} className="mt-2 text-xl font-semibold tracking-tight text-white/90"><span className="animate-shimmer">{value}</span></motion.div> }
-function SectionHeading({ icon: Icon, eyebrow, title, description }: { icon: typeof Activity, eyebrow: string, title: string, description: string }) { return <div className="mb-4 flex items-start gap-3"><div className="mt-0.5 rounded-md border border-white/[0.08] bg-white/[0.03] p-1.5 text-[#b70000]"><Icon size={14}/></div><div><div className="font-mono text-[9px] uppercase tracking-[0.18em] text-[#b70000]/70">{eyebrow}</div><h2 className="mt-1 text-sm font-semibold tracking-tight text-white/90">{title}</h2><p className="mt-1 text-[11px] text-white/35">{description}</p></div></div> }
-function ResultPill({ result }: { result: GuardrailResult | 'loading' }) { if (result === 'loading') return <div className="mt-3 border-t border-white/[0.07] pt-2 font-mono text-[10px] text-white/40"><Clock3 size={11} className="mr-1 inline"/> Checking...</div>; const latStr = result.latency_ms != null ? `${Math.round(result.latency_ms)}ms` : '12ms'; return <div className="mt-3 flex items-center justify-between border-t border-white/[0.07] pt-2 font-mono text-[10px]"><span className={result.blocked ? 'text-red-400' : 'text-[#b70000]'}>{result.blocked ? 'BLOCKED' : 'ALLOWED'} <Check size={11} className="ml-0.5 inline"/></span><span className="text-white/35">{latStr} · {result.category || 'safe'}</span></div> }
+function SpotlightCard({ children, className = '' }: { children: ReactNode; className?: string }) {
+  const x = useMotionValue(50)
+  const y = useMotionValue(50)
+  const springX = useSpring(x, { stiffness: 220, damping: 25 })
+  const springY = useSpring(y, { stiffness: 220, damping: 25 })
+  return (
+    <motion.div
+      onMouseMove={(event) => {
+        const rect = event.currentTarget.getBoundingClientRect()
+        x.set(((event.clientX - rect.left) / rect.width) * 100)
+        y.set(((event.clientY - rect.top) / rect.height) * 100)
+      }}
+      style={{ '--spot-x': springX, '--spot-y': springY } as CSSProperties}
+      className={`group rounded-lg border border-white/[0.08] bg-[var(--st-surface)] p-3 transition-colors hover:border-[var(--st-primary)]/40 [background-image:radial-gradient(circle_at_var(--spot-x)_var(--spot-y),rgba(102,0,0,0.08),transparent_42%)] ${className}`}
+    >
+      {children}
+    </motion.div>
+  )
+}
 
+function TextShimmer({ children }: { children: ReactNode }) {
+  return <span className="animate-shimmer">{children}</span>
+}
+
+function TextMorph({ active }: { active: boolean }) {
+  const labels = ['Try a custom prompt...', 'Test a jailbreak...', 'Inspect a tool call...']
+  const [index, setIndex] = useState(0)
+  useEffect(() => {
+    if (!active) return
+    const timer = setInterval(() => setIndex((value) => (value + 1) % labels.length), 2200)
+    return () => clearInterval(timer)
+  }, [active])
+  return (
+    <AnimatePresence mode="wait">
+      <motion.span
+        key={labels[index]}
+        initial={{ opacity: 0, y: 5, filter: 'blur(4px)' }}
+        animate={{ opacity: 1, y: 0, filter: 'blur(0px)' }}
+        exit={{ opacity: 0, y: -5, filter: 'blur(4px)' }}
+        className="pointer-events-none absolute inset-y-0 left-3 flex items-center text-xs text-[var(--st-muted)]"
+      >
+        {labels[index]}
+      </motion.span>
+    </AnimatePresence>
+  )
+}
+
+function AnimatedNumber({ value }: { value: string }) {
+  return (
+    <motion.div key={value} initial={{ opacity: 0, y: 5 }} animate={{ opacity: 1, y: 0 }} className="mt-2 text-xl font-semibold tracking-tight text-[var(--st-text)]">
+      {value}
+    </motion.div>
+  )
+}
+
+function SectionHeading({ icon: Icon, eyebrow, title, description }: { icon: typeof Activity; eyebrow: string; title: string; description: string }) {
+  return (
+    <div className="mb-4 flex items-start gap-3">
+      <div className="mt-0.5 rounded-md border border-white/[0.08] bg-white/[0.03] p-1.5 text-[#5B8CFF]">
+        <Icon size={14} />
+      </div>
+      <div>
+        <div className="font-mono text-[9px] uppercase tracking-[0.18em] text-[#5B8CFF]/70">{eyebrow}</div>
+        <h2 className="mt-1 text-sm font-semibold tracking-tight text-white/90">{title}</h2>
+        <p className="mt-1 text-[11px] text-white/35">{description}</p>
+      </div>
+    </div>
+  )
+}
+
+function ResultPill({ result }: { result: GuardrailResult | 'loading' }) {
+  if (result === 'loading') {
+    return (
+      <div className="mt-3 border-t border-white/[0.07] pt-2 font-mono text-[10px] text-white/40">
+        <Clock3 size={11} className="mr-1 inline" /> Checking...
+      </div>
+    )
+  }
+  const latStr = result.latency_ms != null ? `${Math.round(result.latency_ms)}ms` : '12ms'
+  const score = result.score ?? result.similarity
+  const scoreStr = score != null ? ` · score ${score.toFixed(2)}` : ''
+  return (
+    <div className="mt-3 flex items-center justify-between border-t border-white/[0.07] pt-2 font-mono text-[10px]">
+      <span className={result.blocked ? 'text-red-400' : 'text-[#5B8CFF]'}>
+        {result.blocked ? 'BLOCKED' : 'ALLOWED'} <Check size={11} className="ml-0.5 inline" />
+      </span>
+      <span className="text-white/35">
+        {latStr}{scoreStr} · {result.category || 'safe'}
+      </span>
+    </div>
+  )
+}

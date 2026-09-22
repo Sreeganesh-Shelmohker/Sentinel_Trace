@@ -46,7 +46,18 @@
 }
 
 :root {
-  color-scheme: light;
+  color-scheme: dark;
+  --st-bg: #0B0D10;
+  --st-surface: #14171C;
+  --st-elevated: #1B1F26;
+  --st-border: #262B33;
+  --st-primary: #5B8CFF;
+  --st-text: #E8EAED;
+  --st-muted: #8B93A1;
+  --st-success: #3ECF8E;
+  --st-danger: #F0555A;
+  --st-warning: #E8B94D;
+  --st-font-mono: 'JetBrains Mono', ui-monospace, SFMono-Regular, Menlo, monospace;
   --background: #010000;
   --foreground: oklch(0.145 0 0);
   --card: oklch(1 0 0);
@@ -80,6 +91,32 @@
   --sidebar-border: oklch(0.922 0 0);
   --sidebar-ring: oklch(0.708 0 0);
 }
+
+.light {
+  color-scheme: light;
+  --st-bg: #fafaf4;
+  --st-surface: #ffffff;
+  --st-elevated: #f0eee6;
+  --st-border: #dedbd1;
+  --st-primary: #660000;
+  --st-text: #080805;
+  --st-muted: #5c5a55;
+  --st-success: #041449;
+  --st-danger: #660000;
+  --st-warning: #6200da;
+  --background: #fafaf4;
+  --foreground: #080805;
+  --card: #ffffff;
+  --card-foreground: #080805;
+}
+
+.light .text-white\/90, .light .text-white\/85, .light .text-white\/75, .light .text-white\/70, .light .text-white\/55, .light .text-white\/50, .light .text-white\/45, .light .text-white\/40, .light .text-white\/35, .light .text-white\/30, .light .text-white\/25, .light .text-white\/20 { color: var(--st-text); }
+.light .text-white { color: var(--st-text); }
+.light .bg-black, .light .bg-black\/10 { background-color: var(--st-surface); }
+.light .bg-white\/\[0\.03\] { background-color: var(--st-elevated); }
+.light .border-white\/\[0\.08\], .light .border-white\/\[0\.07\], .light .border-white\/\[0\.06\], .light .border-white\/\[0\.05\], .light .border-white\/\[0\.14\], .light .border-white\/10 { border-color: var(--st-border); }
+
+.light .animate-shimmer { background: none; color: var(--st-text); animation: none; }
 
 .dark {
   color-scheme: dark;
@@ -153,6 +190,9 @@
   }
 }
 
+.light { --st-glow: rgba(102,0,0,.12); }
+:root { --st-glow: rgba(91,140,255,.12); }
+
 .animate-shimmer {
   background: linear-gradient(110deg, rgba(255,255,255,.45) 35%, #fff 50%, rgba(255,255,255,.45) 65%);
   background-size: 200% 100%;
@@ -172,6 +212,6 @@
   }
   body {
     @apply bg-background text-foreground;
-    background: #010000;
+    background: var(--st-bg);
   }
 }
