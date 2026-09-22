@@ -80,10 +80,10 @@ async function extractErrorMessage(res: Response): Promise<string> {
 }
 
 const taxonomy = [
-  { icon: Ban, name: 'Prompt Injection', description: 'Override or reveal system instructions', color: 'text-red-400' },
-  { icon: Sparkles, name: 'Jailbreak', description: 'Bypass safety via persona or framing tricks', color: 'text-amber-300' },
-  { icon: Database, name: 'Data Exfiltration', description: 'Extract sensitive config or internal data', color: 'text-violet-300' },
-  { icon: Terminal, name: 'Tool Abuse', description: 'Manipulate agents into unauthorized actions', color: 'text-orange-300' },
+  { icon: Ban, name: 'Prompt Injection', description: 'Override or reveal system instructions', color: 'text-rose-600' },
+  { icon: Sparkles, name: 'Jailbreak', description: 'Bypass safety via persona or framing tricks', color: 'text-amber-600' },
+  { icon: Database, name: 'Data Exfiltration', description: 'Extract sensitive config or internal data', color: 'text-purple-600' },
+  { icon: Terminal, name: 'Tool Abuse', description: 'Manipulate agents into unauthorized actions', color: 'text-orange-600' },
 ]
 
 const prompts = [
@@ -113,10 +113,10 @@ const replays = [
 
 function toneClass(tone: string) {
   return tone === 'green'
-    ? 'text-[#5B8CFF] bg-[#5B8CFF]/10 border-[#5B8CFF]/20'
+    ? 'text-blue-700 bg-blue-50 border-blue-200'
     : tone === 'red'
-      ? 'text-red-400 bg-red-400/10 border-red-400/20'
-      : 'text-amber-300 bg-amber-300/10 border-amber-300/20'
+      ? 'text-rose-700 bg-rose-50 border-rose-200'
+      : 'text-amber-800 bg-amber-50 border-amber-200'
 }
 
 export default function MosswallDashboard() {
@@ -127,7 +127,6 @@ export default function MosswallDashboard() {
   const [expandedReplay, setExpandedReplay] = useState<number | null>(null)
   const [expandedTaxonomy, setExpandedTaxonomy] = useState<string | null>(null)
 
-  // Explicit, honest states: null until real data arrives, explicit error string if API fails
   const [stats, setStats] = useState<StatsData | null>(null)
   const [statsError, setStatsError] = useState<string | null>(null)
 
@@ -317,57 +316,57 @@ export default function MosswallDashboard() {
   }, [])
 
   return (
-    <main className="light min-h-screen bg-[var(--st-bg)] text-[var(--st-text)] selection:bg-[var(--st-primary)]/30">
-      <aside className="fixed inset-y-0 left-0 z-20 hidden w-64 border-r border-[var(--st-border)] bg-[var(--st-surface)] p-4 lg:block">
+    <main className="light min-h-screen bg-[var(--st-bg)] text-slate-900 selection:bg-[var(--st-primary)]/20">
+      <aside className="fixed inset-y-0 left-0 z-20 hidden w-64 border-r border-slate-200 bg-white p-4 lg:block shadow-sm">
         <div className="mb-8 flex items-center gap-3 px-2">
-          <div className="h-9 w-9 overflow-hidden rounded-full border border-[var(--st-primary)]/60 bg-[var(--st-bg)] p-1">
+          <div className="h-9 w-9 overflow-hidden rounded-full border border-slate-200 bg-slate-50 p-1">
             <img
               src="https://hebbkx1anhila5yf.public.blob.vercel-storage.com/Sentinel%20Trace-0HvhwKqlgsZ4gqOF2pDOuqO6CTR7ea.png"
               alt="Sentinel Trace logo"
               className="h-full w-full rounded-full object-cover"
             />
           </div>
-          <span className="font-semibold tracking-tight">Sentinel Trace</span>
+          <span className="font-bold tracking-tight text-slate-900">Sentinel Trace</span>
         </div>
         <nav aria-label="Dashboard sections" className="space-y-1">
           {tabs.map((tab) => (
             <button
               key={tab}
               onClick={() => setActiveTab(tab)}
-              className={`relative flex w-full items-center gap-3 rounded-md px-3 py-2.5 text-left text-xs transition-all ${
+              className={`relative flex w-full items-center gap-3 rounded-lg px-3 py-2.5 text-left text-xs transition-all ${
                 activeTab === tab
-                  ? 'bg-[var(--st-elevated)] text-[var(--st-text)] shadow-[0_0_18px_var(--st-glow)]'
-                  : 'text-[var(--st-muted)] hover:bg-[var(--st-elevated)] hover:text-[var(--st-text)] hover:shadow-[0_0_22px_rgba(102,0,0,0.28)] hover:ring-1 hover:ring-[var(--st-primary)]/30'
+                  ? 'bg-slate-100 text-slate-900 font-semibold shadow-sm'
+                  : 'text-slate-600 hover:bg-slate-50 hover:text-slate-900'
               }`}
             >
-              <span className={`h-1.5 w-1.5 rounded-full ${activeTab === tab ? 'bg-[var(--st-primary)]' : 'bg-[var(--st-border)]'}`} />
+              <span className={`h-1.5 w-1.5 rounded-full ${activeTab === tab ? 'bg-blue-600' : 'bg-slate-300'}`} />
               {tab}
               {activeTab === tab && (
                 <motion.span
                   layoutId="tab-indicator"
-                  className="absolute right-2 h-4 w-0.5 rounded-full bg-[var(--st-primary)]"
+                  className="absolute right-2 h-4 w-0.5 rounded-full bg-blue-600"
                   transition={{ type: 'spring', stiffness: 400, damping: 30 }}
                 />
               )}
             </button>
           ))}
         </nav>
-        <div className="absolute bottom-5 left-6 right-6 font-mono text-[10px] text-[var(--st-muted)]">
+        <div className="absolute bottom-5 left-6 right-6 font-mono text-[10px] text-slate-500 font-medium">
           SYSTEM ONLINE<br />
-          <span className="text-[var(--st-success)]">● polling every 5s</span>
+          <span className="text-emerald-700 font-bold">● polling every 5s</span>
         </div>
       </aside>
 
       <div className="lg:pl-64">
-        <header className="border-b border-[var(--st-border)] px-5 sm:px-8"></header>
+        <header className="border-b border-slate-200 px-5 sm:px-8"></header>
         <div className="mx-auto max-w-[1440px] px-5 py-6 sm:px-8">
-          <div className="mb-5 flex gap-2 overflow-x-auto rounded-lg border border-[var(--st-border)] bg-[var(--st-surface)] p-1 lg:hidden">
+          <div className="mb-5 flex gap-2 overflow-x-auto rounded-lg border border-slate-200 bg-white p-1 lg:hidden shadow-sm">
             {tabs.map((tab) => (
               <button
                 key={tab}
                 onClick={() => setActiveTab(tab)}
-                className={`whitespace-nowrap rounded-md px-3 py-2 text-[11px] ${
-                  activeTab === tab ? 'bg-[var(--st-elevated)] text-[var(--st-text)]' : 'text-[var(--st-muted)]'
+                className={`whitespace-nowrap rounded-md px-3 py-2 text-[11px] font-medium ${
+                  activeTab === tab ? 'bg-slate-100 text-slate-900 font-semibold' : 'text-slate-600'
                 }`}
               >
                 <Menu size={12} className="mr-1 inline" />
@@ -377,7 +376,7 @@ export default function MosswallDashboard() {
           </div>
 
           {apiError && (
-            <div className="mb-5 flex items-center gap-2 rounded-lg border border-red-500/30 bg-red-950/20 px-3 py-2 font-mono text-[11px] text-red-400 font-bold">
+            <div className="mb-5 flex items-center gap-2 rounded-lg border border-red-300 bg-red-50 px-3.5 py-2.5 font-mono text-[11px] text-red-700 font-bold shadow-sm">
               <AlertTriangle size={14} className="shrink-0" />
               <span>Backend request failed — {apiError}. No fallback data is rendered.</span>
             </div>
@@ -385,9 +384,7 @@ export default function MosswallDashboard() {
 
           <section className="mb-8 grid gap-2 md:grid-cols-4">
             {taxonomy.map(({ icon: Icon, name, description, color }, idx) => {
-              const titleSize = [16, 20, 14, 16][idx]
-              const cardExtraClass = idx === 1 ? 'rounded-[12px] pt-[17px] pr-[11px] pb-0 pl-[22px] font-bold' : idx === 3 ? 'pt-[19px] pb-0' : ''
-              const centerText = 'text-center'
+              const titleSize = [15, 16, 15, 15][idx]
               return (
                 <SpotlightCard key={name}>
                   <button
@@ -395,14 +392,12 @@ export default function MosswallDashboard() {
                     className="w-full text-center"
                     aria-expanded={expandedTaxonomy === name}
                   >
-                    <div className={`flex items-center justify-center gap-2 ${cardExtraClass} ${centerText}`}>
-                      <div className="flex items-center justify-center gap-2">
-                        <Icon size={14} className={color} />
-                        <span className="font-medium text-white" style={{ fontSize: `${titleSize}px` }}>{name}</span>
-                      </div>
+                    <div className="flex items-center justify-center gap-2">
+                      <Icon size={16} className={color} />
+                      <span className="font-semibold text-slate-900" style={{ fontSize: `${titleSize}px` }}>{name}</span>
                       <ChevronDown
-                        size={12}
-                        className={`text-white/30 transition-transform ${expandedTaxonomy === name ? 'rotate-180' : ''}`}
+                        size={13}
+                        className={`text-slate-400 transition-transform ${expandedTaxonomy === name ? 'rotate-180' : ''}`}
                       />
                     </div>
                     <AnimatePresence initial={false}>
@@ -411,7 +406,7 @@ export default function MosswallDashboard() {
                           initial={{ height: 0, opacity: 0 }}
                           animate={{ height: 'auto', opacity: 1 }}
                           exit={{ height: 0, opacity: 0 }}
-                          className="mt-2 overflow-hidden text-[11px] leading-relaxed text-white/40"
+                          className="mt-2 overflow-hidden text-[11px] leading-relaxed text-slate-600"
                         >
                           {description}
                         </motion.p>
@@ -425,25 +420,25 @@ export default function MosswallDashboard() {
 
           {/* Tab 1: Home Overview */}
           <section className={`${activeTab === 'Home' ? 'block' : 'hidden'} mb-8 max-w-3xl`}>
-            <div className="rounded-xl border border-[var(--st-border)] bg-white p-6 shadow-[0_0_40px_var(--st-glow)]">
+            <div className="rounded-xl border border-slate-200 bg-white p-6 shadow-sm">
               <div className="flex items-center gap-3">
-                <div className="flex size-12 items-center justify-center rounded-[17px] border border-[var(--st-primary)]/50 bg-[var(--st-bg)] p-1">
+                <div className="flex size-12 items-center justify-center rounded-xl border border-slate-200 bg-slate-50 p-1">
                   <img
                     src="https://hebbkx1anhila5yf.public.blob.vercel-storage.com/Sentinel%20Trace-0HvhwKqlgsZ4gqOF2pDOuqO6CTR7ea.png"
                     alt="Sentinel Trace logo"
-                    className="size-full rounded-[17px] object-cover"
+                    className="size-full rounded-lg object-cover"
                   />
                 </div>
                 <div className="flex items-center gap-2">
-                  <div className="font-mono text-[24px] font-bold uppercase tracking-[0.2em] leading-none text-[var(--st-primary)]">Sentinel Trace</div>
-                  <div className="inline-flex shrink-0 items-center rounded-full border border-[var(--st-border)] bg-[var(--st-surface)] px-2 py-0 font-mono text-[10px] uppercase leading-none tracking-widest text-[var(--st-primary)]">live</div>
+                  <div className="font-mono text-[24px] font-bold uppercase tracking-[0.2em] leading-none text-slate-900">Sentinel Trace</div>
+                  <div className="inline-flex shrink-0 items-center rounded-full border border-emerald-200 bg-emerald-50 px-2 py-0.5 font-mono text-[10px] uppercase font-bold tracking-widest text-emerald-700">live</div>
                 </div>
               </div>
-              <p className="mt-8 max-w-2xl text-2xl font-semibold tracking-tight text-black">Real-time AI agent guardrails and continuous evaluation, powered by Moss.</p>
-              <p className="mt-3 font-mono text-[10px] uppercase tracking-wider text-gray-700">Sub-15ms threat detection · Background groundedness checks · Full audit trail.</p>
-              <div className="mt-8 border-t border-gray-200 pt-5">
-                <div className="font-mono text-[10px] font-bold uppercase tracking-[0.2em] text-[var(--st-primary)]">Project details</div>
-                <p className="mt-3 max-w-2xl text-sm leading-relaxed text-gray-600">Sentinel Trace monitors AI agent behavior across guardrails, model responses, and groundedness checks, giving every run an auditable trail.</p>
+              <p className="mt-8 max-w-2xl text-2xl font-bold tracking-tight text-slate-900">Real-time AI agent guardrails and continuous evaluation, powered by Moss.</p>
+              <p className="mt-3 font-mono text-[10px] uppercase tracking-wider text-slate-500 font-semibold">Sub-15ms threat detection · Background groundedness checks · Full audit trail.</p>
+              <div className="mt-8 border-t border-slate-100 pt-5">
+                <div className="font-mono text-[10px] font-bold uppercase tracking-[0.2em] text-blue-600">Project details</div>
+                <p className="mt-3 max-w-2xl text-sm leading-relaxed text-slate-600">Sentinel Trace monitors AI agent behavior across guardrails, model responses, and groundedness checks, giving every run an auditable trail.</p>
               </div>
             </div>
           </section>
@@ -458,13 +453,13 @@ export default function MosswallDashboard() {
                   <button
                     key={text}
                     onClick={() => callGuardrail(text, text)}
-                    className="group rounded-lg border border-white/[0.08] bg-[var(--st-surface)] p-3 text-left transition-all hover:-translate-y-0.5 hover:border-[#5B8CFF]/30 hover:bg-[var(--st-elevated)]"
+                    className="group rounded-xl border border-slate-200/90 bg-white p-3.5 text-left shadow-sm transition-all hover:-translate-y-0.5 hover:border-blue-400/50 hover:shadow-md"
                   >
                     <div className="flex items-center justify-between">
-                      <span className="text-[11px] font-semibold text-white/75">{label}</span>
-                      <ArrowRight size={13} className="text-white/20 transition-transform group-hover:translate-x-0.5 group-hover:text-[#5B8CFF]" />
+                      <span className="text-[12px] font-semibold text-slate-900">{label}</span>
+                      <ArrowRight size={13} className="text-slate-400 transition-transform group-hover:translate-x-0.5 group-hover:text-blue-600" />
                     </div>
-                    <p className="mt-2 line-clamp-2 text-xs leading-relaxed text-white/40">{text}</p>
+                    <p className="mt-2 line-clamp-2 text-xs leading-relaxed text-slate-600">{text}</p>
                     {result && <ResultPill result={result} />}
                   </button>
                 )
@@ -481,19 +476,19 @@ export default function MosswallDashboard() {
                     }
                   }}
                   placeholder="Try a custom prompt..."
-                  className="min-w-0 flex-1 w-full rounded-lg border border-white/[0.1] bg-[var(--st-surface)] px-3 py-2.5 text-xs text-white outline-none placeholder:text-white/25 focus:border-[#5B8CFF]/50"
+                  className="min-w-0 flex-1 w-full rounded-lg border border-slate-300 bg-white px-3 py-2.5 text-xs text-slate-900 outline-none placeholder:text-slate-400 focus:border-blue-500 focus:ring-1 focus:ring-blue-500/20 shadow-sm"
                 />
                 <TextMorph active={!customPrompt} />
               </div>
               <button
                 onClick={() => customPrompt.trim() && callGuardrail(customPrompt, 'custom', true)}
-                className="rounded-lg bg-[#5B8CFF] px-4 text-xs font-semibold text-white transition-colors hover:bg-[#7AA3FF]"
+                className="rounded-lg bg-blue-600 px-4 text-xs font-semibold text-white transition-colors hover:bg-blue-700 shadow-sm"
               >
                 Check
               </button>
             </div>
             {customResult && (
-              <div className="mt-2 rounded-lg border border-white/[0.08] bg-[var(--st-surface)] p-3">
+              <div className="mt-2 rounded-xl border border-slate-200 bg-white p-3.5 shadow-sm">
                 <ResultPill result={customResult} />
               </div>
             )}
@@ -502,47 +497,47 @@ export default function MosswallDashboard() {
           {/* Tab 3: Context Evaluation */}
           <section className={`${activeTab === 'Context Evaluation' ? 'block' : 'hidden'} mb-8`}>
             <SectionHeading icon={Layers3} eyebrow="BACKGROUND EVALUATION" title="Context groundedness" description="Verify responses stay anchored to trusted context." />
-            <div className="space-y-2">
+            <div className="space-y-2.5">
               {contexts.map((item) => {
                 const result = evalResults[item.label]
                 return (
-                  <div key={item.label} className="rounded-lg border border-white/[0.08] bg-[var(--st-surface)] p-3">
+                  <div key={item.label} className="rounded-xl border border-slate-200/90 bg-white p-4 shadow-sm">
                     <div className="flex items-center justify-between">
                       <div className="flex items-center gap-2">
-                        <span className={`h-1.5 w-1.5 rounded-full ${item.tone === 'green' ? 'bg-[#5B8CFF]' : item.tone === 'red' ? 'bg-red-400' : 'bg-amber-300'}`} />
-                        <span className="text-xs font-medium text-white/75">{item.label} example</span>
+                        <span className={`h-2 w-2 rounded-full ${item.tone === 'green' ? 'bg-blue-600' : item.tone === 'red' ? 'bg-rose-500' : 'bg-amber-500'}`} />
+                        <span className="text-xs font-semibold text-slate-900">{item.label} example</span>
                       </div>
                       <button
                         onClick={() => callEval(item)}
-                        className="rounded-md border border-white/10 px-2 py-1 font-mono text-[10px] text-white/45 hover:border-white/25 hover:text-white"
+                        className="rounded-md border border-slate-200 bg-slate-50 px-2.5 py-1 font-mono text-[10px] font-medium text-slate-700 hover:border-slate-300 hover:bg-slate-100 transition-colors"
                       >
                         Run check <Play size={10} className="ml-1 inline" />
                       </button>
                     </div>
                     <div className="mt-3 grid gap-2 sm:grid-cols-2">
-                      <div className="rounded border border-white/[0.06] bg-black/10 p-2">
-                        <div className="font-mono text-[9px] uppercase text-white/25">response</div>
-                        <p className="mt-1 text-[11px] leading-relaxed text-white/55">{item.response}</p>
+                      <div className="rounded-lg border border-slate-200/70 bg-slate-50/80 p-2.5">
+                        <div className="font-mono text-[9px] uppercase tracking-wider font-semibold text-slate-400">response</div>
+                        <p className="mt-1 text-[11px] leading-relaxed text-slate-700">{item.response}</p>
                       </div>
-                      <div className="rounded border border-white/[0.06] bg-black/10 p-2">
-                        <div className="font-mono text-[9px] uppercase text-white/25">context</div>
-                        <p className="mt-1 text-[11px] leading-relaxed text-white/55">{item.context}</p>
+                      <div className="rounded-lg border border-slate-200/70 bg-slate-50/80 p-2.5">
+                        <div className="font-mono text-[9px] uppercase tracking-wider font-semibold text-slate-400">context</div>
+                        <p className="mt-1 text-[11px] leading-relaxed text-slate-700">{item.context}</p>
                       </div>
                     </div>
                     {result && (
-                      <div className="mt-2 font-mono text-[10px]">
+                      <div className="mt-2.5 font-mono text-[10px]">
                         {result === 'loading' ? (
-                          <span className="text-white/50">
+                          <span className="text-slate-500 font-medium">
                             <Clock3 size={11} className="mr-1 inline animate-spin" /> Checking in background (~8s)...
                           </span>
                         ) : result.error ? (
-                          <span className="text-red-400">
+                          <span className="text-rose-600 font-medium">
                             <AlertTriangle size={11} className="mr-1 inline shrink-0" />
                             Backend request failed — {result.error}
                           </span>
                         ) : (
-                          <div className="text-white/50">
-                            <span className={result.grounded ? 'text-[#5B8CFF]' : 'text-red-400'}>
+                          <div className="text-slate-600 font-medium">
+                            <span className={result.grounded ? 'text-blue-600 font-bold' : 'text-rose-600 font-bold'}>
                               {result.grounded ? 'GROUNDED' : 'UNGROUNDED'}
                             </span>{' '}
                             · score {(result.groundedness_score ?? result.score ?? 0).toFixed(2)} ·{' '}
@@ -566,7 +561,7 @@ export default function MosswallDashboard() {
             <SectionHeading icon={Activity} eyebrow="OBSERVABILITY" title="Live trace" description="Rolling telemetry from your agent runtime." />
             <div className="grid grid-cols-2 gap-2 sm:grid-cols-3 lg:grid-cols-5">
               {statsError ? (
-                <div className="col-span-full rounded-lg border border-red-500/20 bg-[var(--st-surface)] p-4 font-mono text-xs text-red-400 flex items-center gap-2">
+                <div className="col-span-full rounded-xl border border-red-200 bg-red-50/70 p-4 font-mono text-xs text-red-700 flex items-center gap-2">
                   <AlertTriangle size={14} className="shrink-0" />
                   <span>Backend request failed — {statsError}</span>
                 </div>
@@ -579,54 +574,54 @@ export default function MosswallDashboard() {
                   ['Groundedness', `${stats.grounded}%`, 'average context fidelity'],
                 ].map(([label, value, sub]) => (
                   <SpotlightCard key={label}>
-                    <div className="font-mono text-[10px] uppercase tracking-wider text-white/35">{label}</div>
+                    <div className="font-mono text-[10px] uppercase tracking-wider font-semibold text-slate-500">{label}</div>
                     <AnimatedNumber value={value} />
-                    <div className="mt-1 text-[10px] text-white/30">{sub}</div>
+                    <div className="mt-1 text-[10px] text-slate-500">{sub}</div>
                   </SpotlightCard>
                 ))
               ) : (
                 ['Total checks', 'Block rate', 'Avg guardrail', 'Avg evaluation', 'Groundedness'].map((label) => (
                   <SpotlightCard key={label}>
-                    <div className="font-mono text-[10px] uppercase tracking-wider text-white/35">{label}</div>
-                    <div className="mt-2 text-xl font-semibold tracking-tight text-white/40 font-mono">
+                    <div className="font-mono text-[10px] uppercase tracking-wider font-semibold text-slate-500">{label}</div>
+                    <div className="mt-2 text-xl font-bold tracking-tight text-slate-400 font-mono">
                       <TextShimmer>Loading...</TextShimmer>
                     </div>
                   </SpotlightCard>
                 ))
               )}
             </div>
-            <div className="mt-4 overflow-hidden rounded-lg border border-white/[0.08] bg-[var(--st-surface)]">
-              <div className="flex items-center justify-between border-b border-white/[0.07] px-3 py-2">
-                <span className="font-mono text-[10px] uppercase tracking-wider text-white/40">Recent events</span>
-                <RefreshCw size={12} className="text-white/25" />
+            <div className="mt-4 overflow-hidden rounded-xl border border-slate-200/90 bg-white shadow-sm">
+              <div className="flex items-center justify-between border-b border-slate-200 px-3.5 py-2.5">
+                <span className="font-mono text-[10px] uppercase tracking-wider font-semibold text-slate-600">Recent events</span>
+                <RefreshCw size={12} className="text-slate-400" />
               </div>
               {logsError ? (
-                <div className="p-4 font-mono text-xs text-red-400 flex items-center gap-2">
+                <div className="p-4 font-mono text-xs text-red-600 flex items-center gap-2">
                   <AlertTriangle size={14} className="shrink-0" />
                   <span>Backend request failed — {logsError}</span>
                 </div>
               ) : logs === null ? (
-                <div className="p-4 font-mono text-xs text-white/35">
+                <div className="p-4 font-mono text-xs text-slate-500">
                   <TextShimmer>Loading live traces...</TextShimmer>
                 </div>
               ) : logs.length === 0 ? (
-                <div className="p-4 font-mono text-xs text-white/35">
+                <div className="p-4 font-mono text-xs text-slate-500">
                   No trace events recorded yet in backend database.
                 </div>
               ) : (
                 <>
-                  <div className="divide-y divide-white/[0.05]">
+                  <div className="divide-y divide-slate-100">
                     {logs.map((log) => (
-                      <div key={`${log.id}-${log.time}`} className="grid grid-cols-[80px_1fr_auto] items-center gap-2 px-3 py-2 font-mono text-[10px]">
-                        <span className="text-white/30">{log.time}</span>
-                        <span className="text-white/50">{log.type}</span>
-                        <span className={log.verdict === 'BLOCKED' ? 'text-red-400' : 'text-[#5B8CFF]'}>
-                          {log.verdict} <span className="text-white/25">{log.latency}</span>
+                      <div key={`${log.id}-${log.time}`} className="grid grid-cols-[80px_1fr_auto] items-center gap-2 px-3.5 py-2.5 font-mono text-[10px]">
+                        <span className="text-slate-400">{log.time}</span>
+                        <span className="text-slate-700 font-medium">{log.type}</span>
+                        <span className={log.verdict === 'BLOCKED' ? 'text-rose-600 font-bold' : 'text-blue-600 font-bold'}>
+                          {log.verdict} <span className="text-slate-400 font-normal">{log.latency}</span>
                         </span>
                       </div>
                     ))}
                   </div>
-                  <div className="w-full border-t border-white/[0.07] py-2 text-center text-[10px] text-white/35">
+                  <div className="w-full border-t border-slate-200 py-2 text-center text-[10px] text-slate-500 font-medium">
                     Live audit trail ({logs.length} events loaded)
                   </div>
                 </>
@@ -637,10 +632,10 @@ export default function MosswallDashboard() {
           {/* Tab 5: Policies */}
           <section className={`mb-8 ${activeTab === 'Policies' ? 'block' : 'hidden'}`}>
             <SectionHeading icon={ShieldCheck} eyebrow="POLICY LIBRARY" title="Threat patterns" description="Indexed semantic guardrails used across the Sentinel Trace pipeline." />
-            <div className="mb-5 flex flex-wrap items-baseline gap-x-2 gap-y-1 font-mono text-[10px] uppercase tracking-wider text-white/35">
-              <span className="text-white/75">
+            <div className="mb-5 flex flex-wrap items-baseline gap-x-2 gap-y-1 font-mono text-[10px] uppercase tracking-wider text-slate-500">
+              <span className="text-slate-900 font-bold">
                 {policiesError ? (
-                  <span className="text-red-400">Failed to load patterns</span>
+                  <span className="text-rose-600">Failed to load patterns</span>
                 ) : policies ? (
                   `${policies.total_patterns ?? policies.total_documents ?? policies.total_count ?? policies.total ?? policies.categories?.reduce((sum: number, category: PolicyCategory) => sum + (category.pattern_count ?? category.count ?? 0), 0) ?? 0} patterns`
                 ) : (
@@ -652,7 +647,7 @@ export default function MosswallDashboard() {
             </div>
             <div className="grid gap-2 sm:grid-cols-2 xl:grid-cols-5">
               {policiesError ? (
-                <div className="col-span-full rounded-lg border border-red-500/20 bg-[var(--st-surface)] p-5 font-mono text-xs text-red-400 flex items-center gap-2">
+                <div className="col-span-full rounded-xl border border-red-200 bg-red-50/70 p-5 font-mono text-xs text-red-600 flex items-center gap-2">
                   <AlertTriangle size={14} className="shrink-0" />
                   <span>Backend request failed — {policiesError}</span>
                 </div>
@@ -665,16 +660,16 @@ export default function MosswallDashboard() {
                       key={name}
                       className={
                         threat
-                          ? 'hover:border-red-400/40 [background-image:radial-gradient(circle_at_var(--spot-x)_var(--spot-y),rgba(248,113,113,0.16),transparent_42%)]'
-                          : 'hover:border-white/20'
+                          ? 'hover:border-red-300'
+                          : 'hover:border-slate-300'
                       }
                     >
                       <div className="flex min-h-32 flex-col justify-between">
                         <div>
-                          <div className={`font-mono text-[10px] uppercase tracking-wider ${threat ? 'text-red-400/70' : 'text-white/35'}`}>{name}</div>
-                          <p className="mt-2 text-[11px] leading-relaxed text-white/40">{category.description ?? 'Indexed policy patterns for this category.'}</p>
+                          <div className={`font-mono text-[10px] uppercase tracking-wider font-semibold ${threat ? 'text-red-700' : 'text-slate-500'}`}>{name}</div>
+                          <p className="mt-2 text-[11px] leading-relaxed text-slate-600">{category.description ?? 'Indexed policy patterns for this category.'}</p>
                         </div>
-                        <div className={`mt-5 text-4xl font-semibold tracking-tight ${threat ? 'text-red-400' : 'text-white/70'}`}>
+                        <div className={`mt-5 text-4xl font-bold tracking-tight ${threat ? 'text-red-600' : 'text-slate-900'}`}>
                           {category.count ?? category.pattern_count ?? category.patterns ?? 0}
                         </div>
                       </div>
@@ -682,7 +677,7 @@ export default function MosswallDashboard() {
                   )
                 })
               ) : (
-                <div className="col-span-full rounded-lg border border-white/[0.08] bg-[var(--st-surface)] p-5 font-mono text-[11px] text-white/35">
+                <div className="col-span-full rounded-xl border border-slate-200 bg-white p-5 font-mono text-[11px] text-slate-500">
                   <TextShimmer>Loading policy catalog...</TextShimmer>
                 </div>
               )}
@@ -697,26 +692,26 @@ export default function MosswallDashboard() {
                 <button
                   key={item.title}
                   onClick={() => setExpandedReplay(expandedReplay === index ? null : index)}
-                  className="rounded-lg border border-dashed border-white/[0.14] bg-[var(--st-surface)] p-3 text-left transition-colors hover:border-white/25"
+                  className="rounded-xl border border-slate-200/90 bg-white p-3.5 text-left shadow-sm transition-all hover:border-slate-300 hover:shadow-md"
                 >
                   <div className="flex items-start justify-between gap-3">
                     <div>
-                      <div className="text-xs font-medium text-white/75">{item.title}</div>
-                      <div className="mt-1 text-[11px] text-white/35">{item.detail}</div>
+                      <div className="text-xs font-semibold text-slate-900">{item.title}</div>
+                      <div className="mt-1 text-[11px] text-slate-500">{item.detail}</div>
                     </div>
-                    <span className={`rounded border px-1.5 py-0.5 font-mono text-[9px] ${toneClass(item.tone)}`}>{item.verdict}</span>
+                    <span className={`rounded border px-1.5 py-0.5 font-mono text-[9px] font-bold ${toneClass(item.tone)}`}>{item.verdict}</span>
                   </div>
                   {expandedReplay === index && (
-                    <div className="mt-4 space-y-2 border-t border-white/[0.07] pt-3">
+                    <div className="mt-4 space-y-2 border-t border-slate-100 pt-3">
                       {item.steps.map((step, i) => (
-                        <div key={step} className="flex items-center gap-2 text-[10px] text-white/50">
-                          <span className="flex h-4 w-4 shrink-0 items-center justify-center rounded-full bg-white/[0.08] font-mono text-[9px] text-white/45">{i + 1}</span>
+                        <div key={step} className="flex items-center gap-2 text-[10px] text-slate-600 font-medium">
+                          <span className="flex h-4 w-4 shrink-0 items-center justify-center rounded-full bg-slate-100 font-mono text-[9px] text-slate-700 font-bold">{i + 1}</span>
                           {step}
                         </div>
                       ))}
                     </div>
                   )}
-                  <div className="mt-3 flex items-center justify-between font-mono text-[9px] uppercase tracking-wider text-white/25">
+                  <div className="mt-3 flex items-center justify-between font-mono text-[9px] uppercase tracking-wider text-slate-400">
                     <span>Recorded trace</span>
                     <ChevronDown size={12} className={`transition-transform ${expandedReplay === index ? 'rotate-180' : ''}`} />
                   </div>
@@ -743,7 +738,7 @@ function SpotlightCard({ children, className = '' }: { children: ReactNode; clas
         y.set(((event.clientY - rect.top) / rect.height) * 100)
       }}
       style={{ '--spot-x': springX, '--spot-y': springY } as CSSProperties}
-      className={`group rounded-lg border border-white/[0.08] bg-[var(--st-surface)] p-3 transition-colors hover:border-[var(--st-primary)]/40 [background-image:radial-gradient(circle_at_var(--spot-x)_var(--spot-y),rgba(102,0,0,0.08),transparent_42%)] ${className}`}
+      className={`group rounded-xl border border-slate-200/90 bg-white p-3.5 shadow-sm transition-all hover:border-slate-300 hover:shadow-md [background-image:radial-gradient(circle_at_var(--spot-x)_var(--spot-y),rgba(102,0,0,0.04),transparent_42%)] ${className}`}
     >
       {children}
     </motion.div>
@@ -769,7 +764,7 @@ function TextMorph({ active }: { active: boolean }) {
         initial={{ opacity: 0, y: 5, filter: 'blur(4px)' }}
         animate={{ opacity: 1, y: 0, filter: 'blur(0px)' }}
         exit={{ opacity: 0, y: -5, filter: 'blur(4px)' }}
-        className="pointer-events-none absolute inset-y-0 left-3 flex items-center text-xs text-[var(--st-muted)]"
+        className="pointer-events-none absolute inset-y-0 left-3 flex items-center text-xs text-slate-400"
       >
         {labels[index]}
       </motion.span>
@@ -779,7 +774,7 @@ function TextMorph({ active }: { active: boolean }) {
 
 function AnimatedNumber({ value }: { value: string }) {
   return (
-    <motion.div key={value} initial={{ opacity: 0, y: 5 }} animate={{ opacity: 1, y: 0 }} className="mt-2 text-xl font-semibold tracking-tight text-[var(--st-text)]">
+    <motion.div key={value} initial={{ opacity: 0, y: 5 }} animate={{ opacity: 1, y: 0 }} className="mt-2 text-xl font-bold tracking-tight text-slate-900">
       {value}
     </motion.div>
   )
@@ -788,13 +783,13 @@ function AnimatedNumber({ value }: { value: string }) {
 function SectionHeading({ icon: Icon, eyebrow, title, description }: { icon: typeof Activity; eyebrow: string; title: string; description: string }) {
   return (
     <div className="mb-4 flex items-start gap-3">
-      <div className="mt-0.5 rounded-md border border-white/[0.08] bg-white/[0.03] p-1.5 text-[#5B8CFF]">
+      <div className="mt-0.5 rounded-md border border-slate-200 bg-blue-50/60 p-1.5 text-blue-600">
         <Icon size={14} />
       </div>
       <div>
-        <div className="font-mono text-[9px] uppercase tracking-[0.18em] text-[#5B8CFF]/70">{eyebrow}</div>
-        <h2 className="mt-1 text-sm font-semibold tracking-tight text-white/90">{title}</h2>
-        <p className="mt-1 text-[11px] text-white/35">{description}</p>
+        <div className="font-mono text-[9px] uppercase tracking-[0.18em] text-blue-600 font-bold">{eyebrow}</div>
+        <h2 className="mt-1 text-sm font-bold tracking-tight text-slate-900">{title}</h2>
+        <p className="mt-1 text-[11px] text-slate-500">{description}</p>
       </div>
     </div>
   )
@@ -803,14 +798,14 @@ function SectionHeading({ icon: Icon, eyebrow, title, description }: { icon: typ
 function ResultPill({ result }: { result: GuardrailResult | 'loading' }) {
   if (result === 'loading') {
     return (
-      <div className="mt-3 border-t border-white/[0.07] pt-2 font-mono text-[10px] text-white/40">
+      <div className="mt-3 border-t border-slate-200 pt-2 font-mono text-[10px] text-slate-500">
         <Clock3 size={11} className="mr-1 inline animate-spin" /> Checking...
       </div>
     )
   }
   if (result.error) {
     return (
-      <div className="mt-3 border-t border-red-500/20 pt-2 font-mono text-[10px] text-red-400">
+      <div className="mt-3 border-t border-red-200 pt-2 font-mono text-[10px] text-red-600 font-medium">
         <AlertTriangle size={11} className="mr-1 inline shrink-0" /> Backend request failed — {result.error}
       </div>
     )
@@ -819,11 +814,11 @@ function ResultPill({ result }: { result: GuardrailResult | 'loading' }) {
   const score = result.score ?? result.similarity
   const scoreStr = score != null ? ` · score ${score.toFixed(2)}` : ''
   return (
-    <div className="mt-3 flex items-center justify-between border-t border-white/[0.07] pt-2 font-mono text-[10px]">
-      <span className={result.blocked ? 'text-red-400' : 'text-[#5B8CFF]'}>
+    <div className="mt-3 flex items-center justify-between border-t border-slate-200 pt-2 font-mono text-[10px]">
+      <span className={result.blocked ? 'text-rose-600 font-bold' : 'text-blue-600 font-bold'}>
         {result.blocked ? 'BLOCKED' : 'ALLOWED'} <Check size={11} className="ml-0.5 inline" />
       </span>
-      <span className="text-white/35">
+      <span className="text-slate-500 font-medium">
         {latStr}{scoreStr}{result.category ? ` · ${result.category}` : ''}
       </span>
     </div>
