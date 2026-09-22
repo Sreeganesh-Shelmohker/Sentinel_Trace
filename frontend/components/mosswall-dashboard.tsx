@@ -3,23 +3,25 @@
 import { useCallback, useEffect, useMemo, useState } from 'react'
 import type { CSSProperties, MouseEvent, ReactNode } from 'react'
 import { AnimatePresence, motion, useMotionValue, useSpring } from 'motion/react'
-import { Activity, AlertTriangle, ArrowRight, Ban, Check, ChevronDown, Clock3, Database, GitBranch, Layers3, Menu, Play, Radio, RefreshCw, ShieldCheck, Sparkles, Terminal, Zap } from 'lucide-react'
+import { Activity, AlertTriangle, ArrowRight, Ban, Check, ChevronDown, Clock3, Database, GitBranch, Layers3, Menu, Play, RefreshCw, ShieldCheck, Sparkles, Terminal, Zap } from 'lucide-react'
 
 type GuardrailResult = {
-  blocked: boolean
+  blocked?: boolean
   category?: string
   matched_pattern?: string
   score?: number
   similarity?: number
   latency_ms?: number
+  error?: string
 }
 
 type EvalResult = {
-  grounded: boolean
+  grounded?: boolean
   verdict?: string
   score?: number
   groundedness_score?: number
   latency_ms?: number
+  error?: string
 }
 
 type PolicyCategory = {
@@ -51,7 +53,31 @@ type TraceLogItem = {
   latency: string
 }
 
+type StatsData = {
+  total: number
+  blockRate: number
+  guard: number
+  eval: number
+  grounded: number
+}
+
 const apiBase = process.env.NEXT_PUBLIC_API_BASE_URL || 'http://localhost:8000'
+
+async function extractErrorMessage(res: Response): Promise<string> {
+  try {
+    const data = await res.json()
+    if (data.detail) return typeof data.detail === 'string' ? data.detail : JSON.stringify(data.detail)
+    if (data.message) return data.message
+    if (data.error) return data.error
+    return `HTTP ${res.status}: ${JSON.stringify(data)}`
+  } catch {
+    const text = await res.text().catch(() => '')
+    if (text) return `HTTP ${res.status}: ${text}`
+    if (res.status === 429) return 'HTTP 429: credit/quota exhausted'
+    if (res.status === 500) return 'HTTP 500: internal server error'
+    return `HTTP ${res.status} ${res.statusText || 'Request failed'}`
+  }
+}
 
 const taxonomy = [
   { icon: Ban, name: 'Prompt Injection', description: 'Override or reveal system instructions', color: 'text-red-400' },
@@ -100,15 +126,18 @@ export default function MosswallDashboard() {
   const [evalResults, setEvalResults] = useState<Record<string, EvalResult | 'loading'>>({})
   const [expandedReplay, setExpandedReplay] = useState<number | null>(null)
   const [expandedTaxonomy, setExpandedTaxonomy] = useState<string | null>(null)
-  const [stats, setStats] = useState({ total: 1284, blockRate: 18.4, guard: 11, eval: 1840, grounded: 96.2 })
-  const [logs, setLogs] = useState<TraceLogItem[]>([
-    { id: 1, time: '14:32:08', type: 'guardrail', verdict: 'BLOCKED', score: '0.94', latency: '12ms' },
-    { id: 2, time: '14:31:55', type: 'evaluation', verdict: 'GROUNDED', score: '0.89', latency: '1.8s' },
-    { id: 3, time: '14:31:42', type: 'guardrail', verdict: 'ALLOWED', score: '0.08', latency: '9ms' },
-    { id: 4, time: '14:31:18', type: 'guardrail', verdict: 'BLOCKED', score: '0.91', latency: '14ms' },
-  ])
-  const [apiError, setApiError] = useState(false)
+
+  // Explicit, honest states: null until real data arrives, explicit error string if API fails
+  const [stats, setStats] = useState<StatsData | null>(null)
+  const [statsError, setStatsError] = useState<string | null>(null)
+
+  const [logs, setLogs] = useState<TraceLogItem[] | null>(null)
+  const [logsError, setLogsError] = useState<string | null>(null)
+
   const [policies, setPolicies] = useState<PoliciesResponse | null>(null)
+  const [policiesError, setPoliciesError] = useState<string | null>(null)
+
+  const [apiError, setApiError] = useState<string | null>(null)
   const [activeTab, setActiveTab] = useState('Home')
   const tabs = ['Home', 'Guardrail Check', 'Context Evaluation', 'History', 'Live Dashboard', 'Policies']
 
@@ -121,7 +150,10 @@ export default function MosswallDashboard() {
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ prompt: value }),
       })
-      if (!response.ok) throw new Error('Request failed')
+      if (!response.ok) {
+        const errorDetail = await extractErrorMessage(response)
+        throw new Error(errorDetail)
+      }
       const result = await response.json()
       const formatted: GuardrailResult = {
         blocked: Boolean(result.blocked),
@@ -133,18 +165,15 @@ export default function MosswallDashboard() {
       }
       if (custom) setCustomResult(formatted)
       else setPromptResult((prev) => ({ ...prev, [key]: formatted }))
-      setApiError(false)
-    } catch {
-      setApiError(true)
-      const fallback: GuardrailResult = {
-        blocked: /ignore|DAN|delete_account|refund|transfer|system prompt/i.test(value),
-        category: 'prompt_injection',
-        score: 0.91,
-        similarity: 0.91,
-        latency_ms: 12,
+      setApiError(null)
+    } catch (err: any) {
+      const errorMsg = err?.message || 'Network error or backend unreachable'
+      setApiError(errorMsg)
+      const errorResult: GuardrailResult = {
+        error: errorMsg,
       }
-      if (custom) setCustomResult(fallback)
-      else setPromptResult((prev) => ({ ...prev, [key]: fallback }))
+      if (custom) setCustomResult(errorResult)
+      else setPromptResult((prev) => ({ ...prev, [key]: errorResult }))
     }
   }, [])
 
@@ -156,7 +185,10 @@ export default function MosswallDashboard() {
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ response: item.response, context: item.context }),
       })
-      if (!response.ok) throw new Error()
+      if (!response.ok) {
+        const errorDetail = await extractErrorMessage(response)
+        throw new Error(errorDetail)
+      }
       const result = await response.json()
       const isGrounded = result.verdict
         ? result.verdict.toLowerCase() === 'grounded'
@@ -171,16 +203,14 @@ export default function MosswallDashboard() {
         latency_ms: latencyVal,
       }
       setEvalResults((prev) => ({ ...prev, [item.label]: formatted }))
-      setApiError(false)
-    } catch {
-      setApiError(true)
+      setApiError(null)
+    } catch (err: any) {
+      const errorMsg = err?.message || 'Network error or backend unreachable'
+      setApiError(errorMsg)
       setEvalResults((prev) => ({
         ...prev,
         [item.label]: {
-          grounded: item.label !== 'Ungrounded',
-          score: item.label === 'Grounded' ? 0.94 : 0.52,
-          groundedness_score: item.label === 'Grounded' ? 0.94 : 0.52,
-          latency_ms: 1840,
+          error: errorMsg,
         },
       }))
     }
@@ -188,6 +218,7 @@ export default function MosswallDashboard() {
 
   useEffect(() => {
     const load = async () => {
+      // 1. Fetch Stats
       try {
         const statsRes = await fetch(`${apiBase}/trace/stats`)
         if (statsRes.ok) {
@@ -203,14 +234,24 @@ export default function MosswallDashboard() {
               ? Number((data.average_groundedness <= 1.0 ? data.average_groundedness * 100 : data.average_groundedness).toFixed(1))
               : (data.grounded ?? 0),
           })
-          setApiError(false)
+          setStatsError(null)
+        } else {
+          const errDetail = await extractErrorMessage(statsRes)
+          setStats(null)
+          setStatsError(errDetail)
         }
+      } catch (err: any) {
+        setStats(null)
+        setStatsError(err?.message || 'Network error')
+      }
 
+      // 2. Fetch Trace Log
+      try {
         const logsRes = await fetch(`${apiBase}/trace/log`)
         if (logsRes.ok) {
           const logData = await logsRes.json()
-          if (Array.isArray(logData) && logData.length > 0) {
-            const mapped: TraceLogItem[] = logData.slice(0, 6).map((item: any) => {
+          if (Array.isArray(logData)) {
+            const mapped: TraceLogItem[] = logData.slice(0, 10).map((item: any) => {
               let timeStr = '00:00:00'
               if (item.timestamp) {
                 const parts = item.timestamp.split('T')
@@ -239,11 +280,16 @@ export default function MosswallDashboard() {
               }
             })
             setLogs(mapped)
+            setLogsError(null)
           }
-          setApiError(false)
+        } else {
+          const errDetail = await extractErrorMessage(logsRes)
+          setLogs(null)
+          setLogsError(errDetail)
         }
-      } catch {
-        setApiError(true)
+      } catch (err: any) {
+        setLogs(null)
+        setLogsError(err?.message || 'Network error')
       }
     }
     load()
@@ -255,27 +301,20 @@ export default function MosswallDashboard() {
     const loadPolicies = async () => {
       try {
         const response = await fetch(`${apiBase}/policies`)
-        if (!response.ok) throw new Error()
+        if (!response.ok) {
+          const errDetail = await extractErrorMessage(response)
+          throw new Error(errDetail)
+        }
         const data = await response.json()
         setPolicies(data)
-        setApiError(false)
-      } catch {
-        setApiError(true)
+        setPoliciesError(null)
+      } catch (err: any) {
+        setPolicies(null)
+        setPoliciesError(err?.message || 'Network error')
       }
     }
     loadPolicies()
   }, [])
-
-  const statItems = useMemo(
-    () => [
-      ['Total checks', stats.total.toLocaleString(), 'recorded traces'],
-      ['Block rate', `${stats.blockRate}%`, 'threat detection rate'],
-      ['Avg guardrail', `${stats.guard}ms`, 'real-time inference'],
-      ['Avg evaluation', `${(stats.eval / 1000).toFixed(1)}s`, 'background analysis'],
-      ['Groundedness', `${stats.grounded}%`, 'average context fidelity'],
-    ],
-    [stats]
-  )
 
   return (
     <main className="light min-h-screen bg-[var(--st-bg)] text-[var(--st-text)] selection:bg-[var(--st-primary)]/30">
@@ -338,8 +377,9 @@ export default function MosswallDashboard() {
           </div>
 
           {apiError && (
-            <div className="mb-5 flex items-center gap-2 rounded-lg border border-amber-400/20 px-3 py-2 font-mono text-[11px] text-white font-bold">
-              <AlertTriangle size={14} /> Backend unavailable — showing demo data. Live requests will retry automatically.
+            <div className="mb-5 flex items-center gap-2 rounded-lg border border-red-500/30 bg-red-950/20 px-3 py-2 font-mono text-[11px] text-red-400 font-bold">
+              <AlertTriangle size={14} className="shrink-0" />
+              <span>Backend request failed — {apiError}. No fallback data is rendered.</span>
             </div>
           )}
 
@@ -490,11 +530,18 @@ export default function MosswallDashboard() {
                       </div>
                     </div>
                     {result && (
-                      <div className="mt-2 font-mono text-[10px] text-white/50">
+                      <div className="mt-2 font-mono text-[10px]">
                         {result === 'loading' ? (
-                          'Checking in background (~8s)...'
+                          <span className="text-white/50">
+                            <Clock3 size={11} className="mr-1 inline animate-spin" /> Checking in background (~8s)...
+                          </span>
+                        ) : result.error ? (
+                          <span className="text-red-400">
+                            <AlertTriangle size={11} className="mr-1 inline shrink-0" />
+                            Backend request failed — {result.error}
+                          </span>
                         ) : (
-                          <>
+                          <div className="text-white/50">
                             <span className={result.grounded ? 'text-[#5B8CFF]' : 'text-red-400'}>
                               {result.grounded ? 'GROUNDED' : 'UNGROUNDED'}
                             </span>{' '}
@@ -504,7 +551,7 @@ export default function MosswallDashboard() {
                                 ? `${(result.latency_ms / 1000).toFixed(1)}s`
                                 : `${Math.round(result.latency_ms)}ms`
                               : ''}
-                          </>
+                          </div>
                         )}
                       </div>
                     )}
@@ -518,33 +565,72 @@ export default function MosswallDashboard() {
           <section className={`${activeTab === 'Live Dashboard' ? 'block' : 'hidden'} mb-8`}>
             <SectionHeading icon={Activity} eyebrow="OBSERVABILITY" title="Live trace" description="Rolling telemetry from your agent runtime." />
             <div className="grid grid-cols-2 gap-2 sm:grid-cols-3 lg:grid-cols-5">
-              {statItems.map(([label, value, sub]) => (
-                <SpotlightCard key={label}>
-                  <div className="font-mono text-[10px] uppercase tracking-wider text-white/35">{label}</div>
-                  <AnimatedNumber value={value} />
-                  <div className="mt-1 text-[10px] text-white/30">{sub}</div>
-                </SpotlightCard>
-              ))}
+              {statsError ? (
+                <div className="col-span-full rounded-lg border border-red-500/20 bg-[var(--st-surface)] p-4 font-mono text-xs text-red-400 flex items-center gap-2">
+                  <AlertTriangle size={14} className="shrink-0" />
+                  <span>Backend request failed — {statsError}</span>
+                </div>
+              ) : stats ? (
+                [
+                  ['Total checks', stats.total.toLocaleString(), 'recorded traces'],
+                  ['Block rate', `${stats.blockRate}%`, 'threat detection rate'],
+                  ['Avg guardrail', `${stats.guard}ms`, 'real-time inference'],
+                  ['Avg evaluation', `${(stats.eval / 1000).toFixed(1)}s`, 'background analysis'],
+                  ['Groundedness', `${stats.grounded}%`, 'average context fidelity'],
+                ].map(([label, value, sub]) => (
+                  <SpotlightCard key={label}>
+                    <div className="font-mono text-[10px] uppercase tracking-wider text-white/35">{label}</div>
+                    <AnimatedNumber value={value} />
+                    <div className="mt-1 text-[10px] text-white/30">{sub}</div>
+                  </SpotlightCard>
+                ))
+              ) : (
+                ['Total checks', 'Block rate', 'Avg guardrail', 'Avg evaluation', 'Groundedness'].map((label) => (
+                  <SpotlightCard key={label}>
+                    <div className="font-mono text-[10px] uppercase tracking-wider text-white/35">{label}</div>
+                    <div className="mt-2 text-xl font-semibold tracking-tight text-white/40 font-mono">
+                      <TextShimmer>Loading...</TextShimmer>
+                    </div>
+                  </SpotlightCard>
+                ))
+              )}
             </div>
             <div className="mt-4 overflow-hidden rounded-lg border border-white/[0.08] bg-[var(--st-surface)]">
               <div className="flex items-center justify-between border-b border-white/[0.07] px-3 py-2">
                 <span className="font-mono text-[10px] uppercase tracking-wider text-white/40">Recent events</span>
                 <RefreshCw size={12} className="text-white/25" />
               </div>
-              <div className="divide-y divide-white/[0.05]">
-                {logs.map((log) => (
-                  <div key={`${log.id}-${log.time}`} className="grid grid-cols-[80px_1fr_auto] items-center gap-2 px-3 py-2 font-mono text-[10px]">
-                    <span className="text-white/30">{log.time}</span>
-                    <span className="text-white/50">{log.type}</span>
-                    <span className={log.verdict === 'BLOCKED' ? 'text-red-400' : 'text-[#5B8CFF]'}>
-                      {log.verdict} <span className="text-white/25">{log.latency}</span>
-                    </span>
+              {logsError ? (
+                <div className="p-4 font-mono text-xs text-red-400 flex items-center gap-2">
+                  <AlertTriangle size={14} className="shrink-0" />
+                  <span>Backend request failed — {logsError}</span>
+                </div>
+              ) : logs === null ? (
+                <div className="p-4 font-mono text-xs text-white/35">
+                  <TextShimmer>Loading live traces...</TextShimmer>
+                </div>
+              ) : logs.length === 0 ? (
+                <div className="p-4 font-mono text-xs text-white/35">
+                  No trace events recorded yet in backend database.
+                </div>
+              ) : (
+                <>
+                  <div className="divide-y divide-white/[0.05]">
+                    {logs.map((log) => (
+                      <div key={`${log.id}-${log.time}`} className="grid grid-cols-[80px_1fr_auto] items-center gap-2 px-3 py-2 font-mono text-[10px]">
+                        <span className="text-white/30">{log.time}</span>
+                        <span className="text-white/50">{log.type}</span>
+                        <span className={log.verdict === 'BLOCKED' ? 'text-red-400' : 'text-[#5B8CFF]'}>
+                          {log.verdict} <span className="text-white/25">{log.latency}</span>
+                        </span>
+                      </div>
+                    ))}
                   </div>
-                ))}
-              </div>
-              <div className="w-full border-t border-white/[0.07] py-2 text-center text-[10px] text-white/35">
-                Live audit trail ({logs.length} events loaded)
-              </div>
+                  <div className="w-full border-t border-white/[0.07] py-2 text-center text-[10px] text-white/35">
+                    Live audit trail ({logs.length} events loaded)
+                  </div>
+                </>
+              )}
             </div>
           </section>
 
@@ -553,7 +639,9 @@ export default function MosswallDashboard() {
             <SectionHeading icon={ShieldCheck} eyebrow="POLICY LIBRARY" title="Threat patterns" description="Indexed semantic guardrails used across the Sentinel Trace pipeline." />
             <div className="mb-5 flex flex-wrap items-baseline gap-x-2 gap-y-1 font-mono text-[10px] uppercase tracking-wider text-white/35">
               <span className="text-white/75">
-                {policies ? (
+                {policiesError ? (
+                  <span className="text-red-400">Failed to load patterns</span>
+                ) : policies ? (
                   `${policies.total_patterns ?? policies.total_documents ?? policies.total_count ?? policies.total ?? policies.categories?.reduce((sum: number, category: PolicyCategory) => sum + (category.pattern_count ?? category.count ?? 0), 0) ?? 0} patterns`
                 ) : (
                   <TextShimmer>Loading patterns</TextShimmer>
@@ -563,31 +651,37 @@ export default function MosswallDashboard() {
               <span>· {policies?.index_name ?? policies?.version ?? policies?.index ?? 'guardrail-patterns-v2'}</span>
             </div>
             <div className="grid gap-2 sm:grid-cols-2 xl:grid-cols-5">
-              {(policies?.categories ?? []).map((category) => {
-                const name = category.name ?? category.category ?? 'Uncategorized'
-                const threat = !['benign', 'benign_data', 'calibration'].includes(name.toLowerCase())
-                return (
-                  <SpotlightCard
-                    key={name}
-                    className={
-                      threat
-                        ? 'hover:border-red-400/40 [background-image:radial-gradient(circle_at_var(--spot-x)_var(--spot-y),rgba(248,113,113,0.16),transparent_42%)]'
-                        : 'hover:border-white/20'
-                    }
-                  >
-                    <div className="flex min-h-32 flex-col justify-between">
-                      <div>
-                        <div className={`font-mono text-[10px] uppercase tracking-wider ${threat ? 'text-red-400/70' : 'text-white/35'}`}>{name}</div>
-                        <p className="mt-2 text-[11px] leading-relaxed text-white/40">{category.description ?? 'Indexed policy patterns for this category.'}</p>
+              {policiesError ? (
+                <div className="col-span-full rounded-lg border border-red-500/20 bg-[var(--st-surface)] p-5 font-mono text-xs text-red-400 flex items-center gap-2">
+                  <AlertTriangle size={14} className="shrink-0" />
+                  <span>Backend request failed — {policiesError}</span>
+                </div>
+              ) : policies ? (
+                (policies.categories ?? []).map((category) => {
+                  const name = category.name ?? category.category ?? 'Uncategorized'
+                  const threat = !['benign', 'benign_data', 'calibration'].includes(name.toLowerCase())
+                  return (
+                    <SpotlightCard
+                      key={name}
+                      className={
+                        threat
+                          ? 'hover:border-red-400/40 [background-image:radial-gradient(circle_at_var(--spot-x)_var(--spot-y),rgba(248,113,113,0.16),transparent_42%)]'
+                          : 'hover:border-white/20'
+                      }
+                    >
+                      <div className="flex min-h-32 flex-col justify-between">
+                        <div>
+                          <div className={`font-mono text-[10px] uppercase tracking-wider ${threat ? 'text-red-400/70' : 'text-white/35'}`}>{name}</div>
+                          <p className="mt-2 text-[11px] leading-relaxed text-white/40">{category.description ?? 'Indexed policy patterns for this category.'}</p>
+                        </div>
+                        <div className={`mt-5 text-4xl font-semibold tracking-tight ${threat ? 'text-red-400' : 'text-white/70'}`}>
+                          {category.count ?? category.pattern_count ?? category.patterns ?? 0}
+                        </div>
                       </div>
-                      <div className={`mt-5 text-4xl font-semibold tracking-tight ${threat ? 'text-red-400' : 'text-white/70'}`}>
-                        {category.count ?? category.pattern_count ?? category.patterns ?? 0}
-                      </div>
-                    </div>
-                  </SpotlightCard>
-                )
-              })}
-              {!policies && (
+                    </SpotlightCard>
+                  )
+                })
+              ) : (
                 <div className="col-span-full rounded-lg border border-white/[0.08] bg-[var(--st-surface)] p-5 font-mono text-[11px] text-white/35">
                   <TextShimmer>Loading policy catalog...</TextShimmer>
                 </div>
@@ -710,11 +804,18 @@ function ResultPill({ result }: { result: GuardrailResult | 'loading' }) {
   if (result === 'loading') {
     return (
       <div className="mt-3 border-t border-white/[0.07] pt-2 font-mono text-[10px] text-white/40">
-        <Clock3 size={11} className="mr-1 inline" /> Checking...
+        <Clock3 size={11} className="mr-1 inline animate-spin" /> Checking...
       </div>
     )
   }
-  const latStr = result.latency_ms != null ? `${Math.round(result.latency_ms)}ms` : '12ms'
+  if (result.error) {
+    return (
+      <div className="mt-3 border-t border-red-500/20 pt-2 font-mono text-[10px] text-red-400">
+        <AlertTriangle size={11} className="mr-1 inline shrink-0" /> Backend request failed — {result.error}
+      </div>
+    )
+  }
+  const latStr = result.latency_ms != null ? `${Math.round(result.latency_ms)}ms` : ''
   const score = result.score ?? result.similarity
   const scoreStr = score != null ? ` · score ${score.toFixed(2)}` : ''
   return (
@@ -723,7 +824,7 @@ function ResultPill({ result }: { result: GuardrailResult | 'loading' }) {
         {result.blocked ? 'BLOCKED' : 'ALLOWED'} <Check size={11} className="ml-0.5 inline" />
       </span>
       <span className="text-white/35">
-        {latStr}{scoreStr} · {result.category || 'safe'}
+        {latStr}{scoreStr}{result.category ? ` · ${result.category}` : ''}
       </span>
     </div>
   )
